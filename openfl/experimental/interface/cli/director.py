@@ -64,23 +64,12 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
         validators=[
             Validator('settings.listen_host', default='localhost'),
             Validator('settings.listen_port', default=50051, gte=1024, lte=65535),
-            Validator('settings.sample_shape', default=[]),
-            Validator('settings.target_shape', default=[]),
             Validator('settings.install_requirements', default=False),
             Validator('settings.envoy_health_check_period',
                       default=60,  # in seconds
                       gte=1, lte=24 * 60 * 60),
             Validator('settings.review_experiment', default=False),
         ],
-        value_transform=[
-            ('settings.sample_shape', lambda x: list(map(str, x))),
-            ('settings.target_shape', lambda x: list(map(str, x))),
-        ],
-    )
-
-    logger.info(
-        f'Sample shape: {config.settings.sample_shape}, '
-        f'target shape: {config.settings.target_shape}'
     )
 
     if config.root_certificate:
@@ -101,8 +90,6 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
     director_server = DirectorGRPCServer(
         director_cls=Director,
         tls=tls,
-        sample_shape=config.settings.sample_shape,
-        target_shape=config.settings.target_shape,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,

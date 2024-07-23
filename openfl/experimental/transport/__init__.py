@@ -4,4 +4,5 @@
 from openfl.experimental.transport.grpc import (
     AggregatorGRPCClient,
     AggregatorGRPCServer,
+    DirectorGRPCServer,
 )

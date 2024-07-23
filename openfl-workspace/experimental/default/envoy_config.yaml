@@ -1,0 +1,14 @@
+# Copyright (C) 2020-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# SETUP ENVOY PARAMETERS
+
+# cuda_devices - field allows you to put indeces of cuda devices you want to allow using
+#     in Federated experiments
+
+params:
+  install_requirements: true
+  cuda_devices: []
+  review_experiment: False
+
+optional_plugin_components: {}

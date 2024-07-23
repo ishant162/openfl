@@ -32,7 +32,7 @@ def envoy(context):
 
 
 @envoy.command(name='start')
-@option('-n', '--shard-name', required=True,
+@option('-n', '--envoy_name', required=True,
         help='Current shard name')
 @option('-dh', '--director-host', required=True,
         help='The FQDN of the federation director', type=click_types.FQDN)
@@ -48,15 +48,15 @@ def envoy(context):
         help='Path to a private key', type=ClickPath(exists=True))
 @option('-oc', '--public-cert-path', 'certificate', default=None,
         help='Path to a signed certificate', type=ClickPath(exists=True))
-def start_(shard_name, director_host, director_port, tls, envoy_config_path,
+def start_(envoy_name, director_host, director_port, tls, envoy_config_path,
            root_certificate, private_key, certificate):
     """Start the Envoy."""
 
-    from openfl.experimental.component.envoy.envoy import Envoy
+    from openfl.experimental.component.envoy import Envoy
 
     logger.info('🧿 Starting the Envoy.')
     if is_directory_traversal(envoy_config_path):
-        click.echo('The shard config path is out of the openfl workspace scope.')
+        click.echo('The envoy config path is out of the openfl workspace scope.')
         sys.exit(1)
 
     config = merge_configs(
@@ -67,7 +67,6 @@ def start_(shard_name, director_host, director_port, tls, envoy_config_path,
             'certificate': certificate,
         },
         validators=[
-            Validator('shard_descriptor.template', required=True),
             Validator('params.cuda_devices', default=[]),
             Validator('params.install_requirements', default=True),
             Validator('params.review_experiment', default=False),
@@ -106,14 +105,11 @@ def start_(shard_name, director_host, director_port, tls, envoy_config_path,
         overwritten_review_plan_callback = review_plan_callback
     del envoy_params.review_experiment
 
-    # Instantiate Shard Descriptor
-    shard_descriptor = shard_descriptor_from_config(config.get('shard_descriptor', {}))
     envoy = Envoy(
-        shard_name=shard_name,
+        envoy_name=envoy_name,
         director_host=director_host,
         director_port=director_port,
         tls=tls,
-        shard_descriptor=shard_descriptor,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,
@@ -143,8 +139,6 @@ def create(envoy_path):
     (envoy_path / 'data').mkdir(parents=True, exist_ok=True)
     shutil.copyfile(WORKSPACE / 'default/envoy_config.yaml',
                     envoy_path / 'envoy_config.yaml')
-    shutil.copyfile(WORKSPACE / 'default/shard_descriptor.py',
-                    envoy_path / 'shard_descriptor.py')
     shutil.copyfile(WORKSPACE / 'default/requirements.txt',
                     envoy_path / 'requirements.txt')
 
