@@ -122,9 +122,7 @@ class WorkspaceExport:
         if "backend='ray'" in data or 'backend="ray"' in data:
             data = data.replace(
                 "backend='ray'", "backend='single_process'"
-            ).replace(
-                'backend="ray"', 'backend="single_process"'
-            )
+            ).replace('backend="ray"', 'backend="single_process"')
 
         with open(self.script_path, "w") as f:
             f.write(data)
@@ -413,7 +411,7 @@ class WorkspaceExport:
 
         # Find aggregator details
         aggregator = runtime._aggregator
-        runtime_name = 'runtime_local'
+        runtime_name = "runtime_local"
         runtime_created = False
         private_attrs_callable = aggregator.private_attributes_callable
         aggregator_private_attributes = aggregator.private_attributes
@@ -439,7 +437,7 @@ class WorkspaceExport:
                     data["aggregator"]["callable_func"]["settings"][key] = value
         elif aggregator_private_attributes:
             runtime_created = True
-            with open(self.script_path, 'a') as f:
+            with open(self.script_path, "a") as f:
                 f.write(f"\n{runtime_name} = {flow_name}._runtime\n")
                 f.write(
                     f"\naggregator_private_attributes = "
@@ -473,13 +471,17 @@ class WorkspaceExport:
                         value = f"src.{self.script_name}.{value}"
                         data[collab_name]["callable_func"]["template"] = value
                     elif isinstance(value, (int, str, bool)):
-                        data[collab_name]["callable_func"]["settings"][key] = value
+                        data[collab_name]["callable_func"]["settings"][
+                            key
+                        ] = value
                     else:
                         arg = arguments_passed_to_initialize[key]
                         value = f"src.{self.script_name}.{arg}"
-                        data[collab_name]["callable_func"]["settings"][key] = value
+                        data[collab_name]["callable_func"]["settings"][
+                            key
+                        ] = value
             elif private_attributes:
-                with open(self.script_path, 'a') as f:
+                with open(self.script_path, "a") as f:
                     if not runtime_created:
                         f.write(f"\n{runtime_name} = {flow_name}._runtime\n")
                         runtime_created = True

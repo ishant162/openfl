@@ -205,11 +205,7 @@ def ray_group_assign(collaborators, num_actors=1):
                 .remote()
             )
         # add collaborator to actor group
-        initializations.append(
-            collaborator_actor.append.remote(
-                collaborator
-            )
-        )
+        initializations.append(collaborator_actor.append.remote(collaborator))
 
         times_called += 1
 
@@ -365,12 +361,15 @@ class LocalRuntime(Runtime):
     def __get_aggregator_object(self, aggregator: Type[Aggregator]) -> Any:
         """Get aggregator object based on localruntime backend"""
 
-        if aggregator.private_attributes and aggregator.private_attributes_callable:
+        if (
+            aggregator.private_attributes
+            and aggregator.private_attributes_callable
+        ):
             self.logger.warning(
-                'Warning: Aggregator private attributes '
-                + 'will be initialized via callable and '
-                + 'attributes via aggregator.private_attributes '
-                + 'will be ignored'
+                "Warning: Aggregator private attributes "
+                + "will be initialized via callable and "
+                + "attributes via aggregator.private_attributes "
+                + "will be ignored"
             )
 
         if self.backend == "single_process":
@@ -431,10 +430,10 @@ class LocalRuntime(Runtime):
         for collab in collaborators:
             if collab.private_attributes and collab.private_attributes_callable:
                 self.logger.warning(
-                    f'Warning: Collaborator {collab.name} private attributes '
-                    + 'will be initialized via callable and '
-                    + 'attributes via collaborator.private_attributes '
-                    + 'will be ignored'
+                    f"Warning: Collaborator {collab.name} private attributes "
+                    + "will be initialized via callable and "
+                    + "attributes via collaborator.private_attributes "
+                    + "will be ignored"
                 )
 
         if self.backend == "single_process":
