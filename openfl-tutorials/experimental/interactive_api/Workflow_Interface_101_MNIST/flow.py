@@ -155,13 +155,14 @@ from openfl.experimental.interface import Federation
 # 2. Connect to director and run service
 # 3. Connect to envoys and run service
 federation = Federation(
-    director_fqdn="fqdn",
-    director_port=8001,
-    director_user="ubuntu",
-    director_password="password for director",
-    director_identity_file="password OR identity file for this director",
-    tls=False,
-    envoy_details={
+    director={
+        "fqdn": "fqdn",
+        "port": 1008,
+        "user": "ubuntu",
+        "password": "password for director machine",
+        "identity file": "password OR identity file for this director",
+    },
+    envoys={
         "env1": {
             "fqdn": "envoy fqdn",
             "port": 1001,
@@ -171,6 +172,7 @@ federation = Federation(
             "private_attributes": "env1_pa",
         },
     },
+    tls=False,
 )
 
 from openfl.experimental.interface import Aggregator
@@ -205,5 +207,5 @@ flflow.run()
 # FLSpec will do this via runtime object provided to it.
 flflow.stream_metrics()
 
-# Get status of running experiment.
+# Get status of running experiment. Will use runtime object to get the latest status.
 flflow.experiment_status()

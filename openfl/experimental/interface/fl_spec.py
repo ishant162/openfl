@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import inspect
 from copy import deepcopy
-from typing import Callable, List, Type
+from typing import Callable, List, Type, Union
 
 from openfl.experimental.runtime import Runtime
+from openfl.experimental.runtime import LocalRuntime
+from openfl.experimental.runtime import FederatedRuntime
 from openfl.experimental.utilities import (
     MetaflowInterface,
     SerializationError,
@@ -87,48 +89,47 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            self.start_director()
-            self.start_envoy()
+            self.start_services()
             self.deploy_workspace()
         else:
             raise Exception("Runtime not implemented")
 
-    def make_plans(self) -> None:
-        # This will extract private attrs and make plan.yaml and data.yaml
-        pass
-
-    def start_director(self) -> None:
-        # Use runtime which will use federation object to start service.
-        pass
-
-    def start_envoy(self) -> None:
-        # Use runtime which will use federation object to start service.
-        pass
-
-    def deploy_workspace(self) -> None:
-        pass
-
-    def stream_metrics(self) -> None:
-        # This has to work for agg based and director based workflow
-        pass
-
-    def experiment_status(self) -> int:
-        # Aggregator will report experiment status to Director,
-        # which will send it here.
-        pass
-
     @property
-    def runtime(self) -> Type[Runtime]:
+    def runtime(self) -> Type[Union[LocalRuntime, FederatedRuntime]]:
         """Returns flow runtime"""
         return self._runtime
 
     @runtime.setter
-    def runtime(self, runtime: Type[Runtime]) -> None:
+    def runtime(self, runtime: Type[Union[LocalRuntime, FederatedRuntime]]) -> None:
         """Sets flow runtime"""
         if isinstance(runtime, Runtime):
             self._runtime = runtime
         else:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
+
+    def make_plans(self) -> None:
+        # This will extract private attrs and make plan.yaml and data.yaml
+        self.runtime.populate_plan()
+        self.runtime.populate_data()
+
+    def start_services(self) -> None:
+        # Use runtime object to Start director and envoy services
+        self.runtime.start_director()
+        self.runtime.start_envoys()
+
+    def deploy_workspace(self) -> bool:
+        # Use runtime object to send experiment.zip to director
+        return self.runtime.submit_workspace()
+
+    def stream_metrics(self) -> None:
+        # This has to work for agg based and director based workflow
+        # prints metrics on the console.
+        self.runtime.stream_metrics()
+
+    def experiment_status(self) -> int:
+        # Aggregator will report experiment status to Director,
+        # which will send it here and from here to user.
+        return self.runtime.experiment_status()
 
     def _capture_instance_snapshot(self, kwargs):
         """
