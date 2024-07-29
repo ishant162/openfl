@@ -110,6 +110,7 @@ setup(
         'openfl.experimental.component.collaborator',
         'openfl.experimental.interface.cli',
         'openfl.experimental.interface',
+        'openfl.experimental.interface.interactive_api',
         'openfl.experimental.placement',
         'openfl.experimental.runtime',
         'openfl.experimental.protocols',

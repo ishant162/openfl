@@ -1,7 +1,5 @@
-# Copyright 2020-2024 Intel Corporation
+# Copyright (C) 2020-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-
 """openfl.experimental.interface.flspec module."""
 
 from __future__ import annotations
@@ -10,6 +8,7 @@ import inspect
 from copy import deepcopy
 from typing import Callable, List, Type
 
+from openfl.experimental.runtime import Runtime
 from openfl.experimental.utilities import (
     MetaflowInterface,
     SerializationError,
@@ -49,7 +48,9 @@ class FLSpec:
         """Starts the execution of the flow"""
         # Submit flow to Runtime
         if str(self._runtime) == "LocalRuntime":
-            self._metaflow_interface = MetaflowInterface(self.__class__, self.runtime.backend)
+            self._metaflow_interface = MetaflowInterface(
+                self.__class__, self.runtime.backend
+            )
             self._run_id = self._metaflow_interface.create_run()
             # Initialize aggregator private attributes
             self.runtime.initialize_aggregator()
@@ -86,21 +87,48 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            pass
+            self.start_director()
+            self.start_envoy()
+            self.deploy_workspace()
         else:
             raise Exception("Runtime not implemented")
 
+    def make_plans(self) -> None:
+        # This will extract private attrs and make plan.yaml and data.yaml
+        pass
+
+    def start_director(self) -> None:
+        # Use runtime which will use federation object to start service.
+        pass
+
+    def start_envoy(self) -> None:
+        # Use runtime which will use federation object to start service.
+        pass
+
+    def deploy_workspace(self) -> None:
+        pass
+
+    def stream_metrics(self) -> None:
+        # This has to work for agg based and director based workflow
+        pass
+
+    def experiment_status(self) -> int:
+        # Aggregator will report experiment status to Director,
+        # which will send it here.
+        pass
+
     @property
-    def runtime(self):
+    def runtime(self) -> Type[Runtime]:
         """Returns flow runtime"""
         return self._runtime
 
     @runtime.setter
-    def runtime(self, runtime) -> None:
-        """Sets flow runtime. `runtime` must be an `openfl.runtime.Runtime` instance."""
-        if str(runtime) not in ["LocalRuntime", "FederatedRuntime"]:
+    def runtime(self, runtime: Type[Runtime]) -> None:
+        """Sets flow runtime"""
+        if isinstance(runtime, Runtime):
+            self._runtime = runtime
+        else:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
-        self._runtime = runtime
 
     def _capture_instance_snapshot(self, kwargs):
         """
@@ -117,7 +145,9 @@ class FLSpec:
             return_objs.append(backup)
         return return_objs
 
-    def _is_at_transition_point(self, f: Callable, parent_func: Callable) -> bool:
+    def _is_at_transition_point(
+        self, f: Callable, parent_func: Callable
+    ) -> bool:
         """
         Has the collaborator finished its current sequence?
 
@@ -128,12 +158,16 @@ class FLSpec:
         if parent_func.__name__ in self._foreach_methods:
             self._foreach_methods.append(f.__name__)
             if should_transfer(f, parent_func):
-                print(f"Should transfer from {parent_func.__name__} to {f.__name__}")
+                print(
+                    f"Should transfer from {parent_func.__name__} to {f.__name__}"
+                )
                 self.execute_next = f.__name__
                 return True
         return False
 
-    def _display_transition_logs(self, f: Callable, parent_func: Callable) -> None:
+    def _display_transition_logs(
+        self, f: Callable, parent_func: Callable
+    ) -> None:
         """
         Prints aggregator to collaborators or
         collaborators to aggregator state transition logs
@@ -157,16 +191,18 @@ class FLSpec:
         for col in selected_collaborators:
             clone = FLSpec._clones[col]
             clone.input = col
-            if ("exclude" in kwargs and hasattr(clone, kwargs["exclude"][0])) or (
-                "include" in kwargs and hasattr(clone, kwargs["include"][0])
-            ):
+            if (
+                "exclude" in kwargs and hasattr(clone, kwargs["exclude"][0])
+            ) or ("include" in kwargs and hasattr(clone, kwargs["include"][0])):
                 filter_attributes(clone, f, **kwargs)
             artifacts_iter, _ = generate_artifacts(ctx=self)
             for name, attr in artifacts_iter():
                 setattr(clone, name, deepcopy(attr))
             clone._foreach_methods = self._foreach_methods
 
-    def restore_instance_snapshot(self, ctx: FLSpec, instance_snapshot: List[FLSpec]):
+    def restore_instance_snapshot(
+        self, ctx: FLSpec, instance_snapshot: List[FLSpec]
+    ):
         """Restores attributes from backup (in instance snapshot) to ctx"""
         for backup in instance_snapshot:
             artifacts_iter, _ = generate_artifacts(ctx=backup)

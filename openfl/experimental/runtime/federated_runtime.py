@@ -1,7 +1,5 @@
-# Copyright 2020-2024 Intel Corporation
+# Copyright (C) 2020-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-
 """ openfl.experimental.runtime package LocalRuntime class."""
 
 from __future__ import annotations
@@ -13,6 +11,7 @@ from openfl.experimental.runtime.runtime import Runtime
 if TYPE_CHECKING:
     from openfl.experimental.interface import Aggregator
     from openfl.experimental.interface import Collaborator
+    from openfl.experimental.interface import Federation
 
 from typing import List, Type
 
@@ -21,8 +20,9 @@ class FederatedRuntime(Runtime):
 
     def __init__(
         self,
-        aggregator: str = None,
-        collaborators: List[str] = None,
+        aggregator: str,
+        collaborators: List[str],
+        federation: Type[Federation],
         **kwargs,
     ) -> None:
         """
@@ -36,11 +36,9 @@ class FederatedRuntime(Runtime):
             None
         """
         super().__init__()
-        if aggregator is not None:
-            self.aggregator = aggregator
-
-        if collaborators is not None:
-            self.collaborators = collaborators
+        self.aggregator = aggregator
+        self.collaborators = collaborators
+        self.federation = federation
 
     @property
     def aggregator(self) -> str:
@@ -63,6 +61,31 @@ class FederatedRuntime(Runtime):
     def collaborators(self, collaborators: List[Type[Collaborator]]):
         """Set LocalRuntime collaborators"""
         self.__collaborators = collaborators
+
+    @property
+    def federation(self) -> str:
+        """Returns name of _aggregator"""
+        return self._federation
+
+    @federation.setter
+    def aggregator(self, federation: Type[Federation]):
+        """Set LocalRuntime _aggregator"""
+        self._federation = federation
+
+    def start_services(self) -> None:
+        # Will use federation object to start services.
+        pass
+
+    def populate_plan(self) -> None:
+        pass
+
+    def populate_data(self) -> None:
+        pass
+
+    def extract_private_attrs(self) -> dict:
+        # This method will call workspace_export module and
+        # extract private attributes from aggregator & collaborator.
+        pass
 
     def __repr__(self):
         return "FederatedRuntime"
