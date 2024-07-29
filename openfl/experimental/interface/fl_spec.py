@@ -90,6 +90,7 @@ class FLSpec:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
             self.start_services()
+            self.prepare_workspace_archive()
             self.deploy_workspace()
         else:
             raise Exception("Runtime not implemented")
@@ -100,17 +101,16 @@ class FLSpec:
         return self._runtime
 
     @runtime.setter
-    def runtime(self, runtime: Type[Union[LocalRuntime, FederatedRuntime]]) -> None:
+    def runtime(self, runtime: Type[Runtime]) -> None:
         """Sets flow runtime"""
         if isinstance(runtime, Runtime):
             self._runtime = runtime
         else:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
 
-    def make_plans(self) -> None:
+    def prepare_workspace_archive(self) -> None:
         # This will extract private attrs and make plan.yaml and data.yaml
-        self.runtime.populate_plan()
-        self.runtime.populate_data()
+        self.runtime.prepare_workspace_archive()
 
     def start_services(self) -> None:
         # Use runtime object to Start director and envoy services

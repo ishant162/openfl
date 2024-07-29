@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from openfl.experimental.interface import ExperimentManager
     from openfl.experimental.interface import ExperimentStatus
 
-from typing import List, Type
+from typing import List, Type, Dict, Any
 
 
 class FederatedRuntime(Runtime):
@@ -84,15 +84,10 @@ class FederatedRuntime(Runtime):
         # Use federation object to start service.
         self.federation.run_envoys()
 
-    def populate_plan(self) -> None:
-        # Use experiment mgr object to prepare plan.yaml
-        self.__experiment_mgr._prepare_plan()
+    def prepare_workspace_archive(self) -> None:
+        self.__experiment_mgr.prepare_workspace_for_distribution()
 
-    def populate_data(self) -> None:
-        # Use experiment mgr object to prepare data.yaml
-        self.__experiment_mgr._prepare_data()
-
-    def extract_private_attrs(self) -> dict:
+    def extract_private_attrs(self) -> Dict[str, Any]:
         # This method will call workspace_export module and
         # extract private attributes from aggregator & collaborator.
         pass
@@ -101,7 +96,7 @@ class FederatedRuntime(Runtime):
         # Submit workspace to director
         return self.__experiment_mgr.submit_workspace()
 
-    def stream_metrics(self) -> dict:
+    def stream_metrics(self) -> Dict[str, float]:
         # Get metrics from aggregator to director to here to experiment mgr
         # to user.
         return self.__experiment_mgr.stream_metrics()

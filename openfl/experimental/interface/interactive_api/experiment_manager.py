@@ -32,23 +32,26 @@ class ExperimentManager:
         # Use dir_client object to get metrics and report to user
         pass
 
-    def remove_experiment_data(self) -> None:
+    def remove_experiment_data(self, flow_id: int) -> None:
         # Remove experiment data including checkpoints
         pass
 
     def prepare_workspace_for_distribution(self) -> None:
-        # Prepare experiment.zip file
-        pass
+        # Prepare 2 experiment.zip files, one for aggregator with file for
+        # it's private attributes
+        # And second zip for collaborators with it's private attributes
+        self.__prepare_plan()
+        self.__prepare_data()
 
     def remove_workspace_archive(self) -> None:
         # Delete experiment.zip file
         pass
 
-    def _prepare_plan(self):
+    def __prepare_plan(self):
         # Prepare plan.yaml
         pass
 
-    def _prepare_data(self):
+    def __prepare_data(self):
         # Prepare data.yaml
         pass
 
