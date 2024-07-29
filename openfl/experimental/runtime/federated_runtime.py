@@ -86,11 +86,11 @@ class FederatedRuntime(Runtime):
 
     def populate_plan(self) -> None:
         # Use experiment mgr object to prepare plan.yaml
-        pass
+        self.__experiment_mgr._prepare_plan()
 
     def populate_data(self) -> None:
         # Use experiment mgr object to prepare data.yaml
-        pass
+        self.__experiment_mgr._prepare_data()
 
     def extract_private_attrs(self) -> dict:
         # This method will call workspace_export module and
