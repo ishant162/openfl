@@ -5,4 +5,3 @@
 from openfl.experimental.interface.fl_spec import FLSpec
 from openfl.experimental.interface.participants import Aggregator, Collaborator
 from openfl.experimental.interface.interactive_api import Federation
-from openfl.experimental.interface.interactive_api import ExperimentManager, ExperimentStatus

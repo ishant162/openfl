@@ -12,11 +12,15 @@ if TYPE_CHECKING:
     from openfl.experimental.interface import Aggregator
     from openfl.experimental.interface import Collaborator
     from openfl.experimental.interface import Federation
-    from openfl.experimental.interface import ExperimentManager
-    from openfl.experimental.interface import ExperimentStatus
 
-from typing import List, Type, Dict, Any
+from typing import List, Type, Dict, Any, Union
 
+
+class ExperimentStatus:
+    SUBMITTED = 0
+    RUNNING = 1
+    ERROR = 2
+    FINISHED = 3
 
 class FederatedRuntime(Runtime):
 
@@ -42,7 +46,6 @@ class FederatedRuntime(Runtime):
         self.aggregator = aggregator
         self.collaborators = collaborators
         self.federation = federation
-        self.__experiment_mgr = ExperimentManager(self.federation._dir_client)
 
     @property
     def aggregator(self) -> str:
@@ -85,25 +88,43 @@ class FederatedRuntime(Runtime):
         self.federation.run_envoys()
 
     def prepare_workspace_archive(self) -> None:
-        self.__experiment_mgr.prepare_workspace_for_distribution()
+        self.extract_private_attrs()
+        self.__prepare_plan()
+        self.__prepare_data()
 
     def extract_private_attrs(self) -> Dict[str, Any]:
         # This method will call workspace_export module and
         # extract private attributes from aggregator & collaborator.
         pass
 
+    def __prepare_plan(self) -> None:
+        # Prepare plan.yaml
+        pass
+
+    def __prepare_data(self) -> None:
+        # Prepare data.yaml
+        pass
+
+    def remove_workspace_archive(self) -> None:
+        # Delete experiment.zip file
+        pass
+
     def submit_workspace(self) -> bool:
-        # Submit workspace to director
-        return self.__experiment_mgr.submit_workspace()
+        # Use federation._dir_client to submit workspace to Director
+        return True
 
-    def stream_metrics(self) -> Dict[str, float]:
-        # Get metrics from aggregator to director to here to experiment mgr
-        # to user.
-        return self.__experiment_mgr.stream_metrics()
+    def stream_metrics(self) -> Dict[str, Union[str, float]]:
+        # Use federation._dir_client object to get metrics and report to user
+        pass
 
-    def experiment_status(self) -> int:
-        # Get experiment status from director and send to experiment mgr.
-        return self.__experiment_mgr.get_experiment_status()
+    def remove_experiment_data(self, flow_id: int) -> None:
+        # Use federation._dir_client to remove experiment data including checkpoints
+        pass
+
+    def get_experiment_status(self) -> int:
+        # Use federation._dir_client to comminicate to director to get experiment status
+        # Return int as defined in ExperimentStatus
+        return ExperimentStatus.SUBMITTED
 
     def __repr__(self):
         return "FederatedRuntime"

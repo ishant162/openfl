@@ -129,7 +129,7 @@ class FLSpec:
     def experiment_status(self) -> int:
         # Aggregator will report experiment status to Director,
         # which will send it here and from here to user.
-        return self.runtime.experiment_status()
+        return self.runtime.get_experiment_status()
 
     def _capture_instance_snapshot(self, kwargs):
         """
