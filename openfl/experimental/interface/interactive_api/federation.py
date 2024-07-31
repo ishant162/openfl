@@ -62,9 +62,3 @@ class Federation:
         # make sure envoy port provided is within valid range 0 to 65535
         # make sure identity file if provided then is located at given path
         self.__envoy_details = envoy_details
-
-    def run_director(self) -> None:
-        pass
-
-    def run_envoys(self) -> None:
-        pass
