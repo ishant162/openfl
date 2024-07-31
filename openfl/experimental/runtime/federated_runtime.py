@@ -79,14 +79,6 @@ class FederatedRuntime(Runtime):
         """Set LocalRuntime _aggregator"""
         self.__federation = federation
 
-    def start_director(self) -> None:
-        # Use federation object to start service.
-        self.federation.run_director()
-
-    def start_envoys(self) -> None:
-        # Use federation object to start service.
-        self.federation.run_envoys()
-
     def prepare_workspace_archive(self) -> None:
         self.extract_private_attrs()
         self.__prepare_plan()
@@ -109,9 +101,9 @@ class FederatedRuntime(Runtime):
         # Delete experiment.zip file
         pass
 
-    def submit_workspace(self) -> bool:
+    def submit_workspace(self) -> int:
         # Use federation._dir_client to submit workspace to Director
-        return True
+        return ExperimentStatus.SUBMITTED
 
     def stream_metrics(self) -> Dict[str, Union[str, float]]:
         # Use federation._dir_client object to get metrics and report to user

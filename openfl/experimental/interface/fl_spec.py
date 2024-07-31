@@ -89,7 +89,6 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            self.start_services()
             self.prepare_workspace_archive()
             self.deploy_workspace()
         else:
@@ -111,11 +110,6 @@ class FLSpec:
     def prepare_workspace_archive(self) -> None:
         # This will extract private attrs and make plan.yaml and data.yaml
         self.runtime.prepare_workspace_archive()
-
-    def start_services(self) -> None:
-        # Use runtime object to Start director and envoy services
-        self.runtime.start_director()
-        self.runtime.start_envoys()
 
     def deploy_workspace(self) -> bool:
         # Use runtime object to send experiment.zip to director
