@@ -88,9 +88,21 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
     def ConnectEnvoy(self, request, context):
         self.logger.info(f"{request.envoy_name} is attempting to connect")
-        self.logger.info(f"{request.envoy_name} is connected")
-        accepted = True
-        return director_pb2.RequestAccepted(accepted=accepted)
+        is_accepted = self.director.acknowledge_envoy(request.envoy_name)
+        return director_pb2.RequestAccepted(accepted=is_accepted)
+
+    def GetEnvoys(self, request, context):
+        """Get information about envoys."""
+        envoy_infos = self.director.get_envoys()
+        envoy_response = []
+        for envoy_info in envoy_infos.values():
+            envoy_info_message = director_pb2.EnvoyInfo(
+                envoy_name=envoy_info["envoy_name"],
+                is_online=envoy_info["is_online"],
+            )
+            envoy_response.append(envoy_info_message)
+
+        return director_pb2.GetEnvoysResponse(envoy_infos=envoy_response)
 
     # TODO: Need to Implement self.director.wait_experiment()
     async def WaitExperiment(self, request, context):

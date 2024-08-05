@@ -149,8 +149,14 @@ def start_(
         overwritten_review_plan_callback = review_plan_callback
     del envoy_params.review_experiment
 
+    """
+    Get the envoys shard descriptor
+    The data will be dowloaded/loaded when we instantiate ShardDescriptor
+    shard_descriptor = ShardDescriptor()
+    """
     envoy = Envoy(
         envoy_name=envoy_name,
+        # shard_descriptor = shard_descriptor
         director_host=director_host,
         director_port=director_port,
         tls=tls,

@@ -15,7 +15,7 @@ class DirectorClient:
         *,
         director_host: str,
         director_port: int,
-        envoy_name: str,
+        envoy_name: str = None,
         tls: bool,
         root_certificate: str,
         private_key: str,
@@ -81,3 +81,8 @@ class DirectorClient:
     def get_experiment_data(self, experiment_name):
         """Get an experiment data from the director."""
         pass
+
+    def get_envoys_info(self):
+        """Get envoys info."""
+        envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
+        return envoys.envoy_infos

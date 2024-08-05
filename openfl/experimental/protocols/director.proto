@@ -1,9 +1,16 @@
+// Copyright (C) 2020-2024 Intel Corporation
+// Licensed subject to the terms of the separately executed evaluation license agreement between Intel Corporation and you.
+
 syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
 
 service Director {
     //Envoy RPCs
     rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
+    //API RPCs
+    rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
 }
 
 message SendConnectionRequest {
@@ -18,6 +25,17 @@ message WaitExperimentRequest {
     string collaborator_name = 1;
   }
   
-  message WaitExperimentResponse {
+message WaitExperimentResponse {
     string experiment_name = 1;
-  }
+}
+
+message EnvoyInfo {
+    string envoy_name = 1;
+    bool is_online = 2;
+}
+
+message GetEnvoysRequest {}
+
+message GetEnvoysResponse {
+  repeated EnvoyInfo envoy_infos = 1;
+}

@@ -111,6 +111,7 @@ setup(
         'openfl.experimental.component.director',
         'openfl.experimental.component.envoy',
         'openfl.experimental.interface.cli',
+        'openfl.experimental.interface.interactive_api',
         'openfl.experimental.interface',
         'openfl.experimental.placement',
         'openfl.experimental.runtime',

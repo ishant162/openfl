@@ -316,6 +316,11 @@ class Plan:
         defaults[SETTINGS]["aggregator_uuid"] = self.aggregator_uuid
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
 
+        # Step 1: Write logic to check if shard
+        # descriptor/DataInterface is there in the plan.yaml/data.yaml
+        # Then We get serialized Data Interface from plan.yaml/data.yaml,
+        # then we deserialize it and set its shard descriptor to envoys shard descriptor
+
         private_attrs_callable, private_attrs_kwargs, private_attributes = (
             self.get_private_attr(collaborator_name)
         )
@@ -457,6 +462,8 @@ class Plan:
         from openfl.experimental.federated.plan import Plan
 
         data_yaml = "plan/data.yaml"
+
+        # Step 2: Write Logic here to get that private attributes from the shard descriptor
 
         if os.path.exists(data_yaml) and os.path.isfile(data_yaml):
             d = Plan.load(Path(data_yaml).absolute())

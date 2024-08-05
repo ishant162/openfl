@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import inspect
 from copy import deepcopy
-from typing import Callable, List, Type
+from typing import Callable, List, Type, Union
 
-from openfl.experimental.runtime import Runtime
+from openfl.experimental.runtime import FederatedRuntime, LocalRuntime, Runtime
 from openfl.experimental.utilities import (
     MetaflowInterface,
     SerializationError,
@@ -87,12 +87,14 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            pass
+            self.start_services()
+            self.prepare_workspace_archive()
+            self.deploy_workspace()
         else:
             raise Exception("Runtime not implemented")
 
     @property
-    def runtime(self) -> Type[Runtime]:
+    def runtime(self) -> Type[Union[LocalRuntime, FederatedRuntime]]:
         """Returns flow runtime"""
         return self._runtime
 
@@ -103,6 +105,29 @@ class FLSpec:
             self._runtime = runtime
         else:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
+
+    def prepare_workspace_archive(self) -> None:
+        # This will extract private attrs and make plan.yaml and data.yaml
+        self.runtime.prepare_workspace_archive()
+
+    def start_services(self) -> None:
+        # Use runtime object to Start director and envoy services
+        self.runtime.start_director()
+        self.runtime.start_envoys()
+
+    def deploy_workspace(self) -> bool:
+        # Use runtime object to send experiment.zip to director
+        return self.runtime.submit_workspace()
+
+    def stream_metrics(self) -> None:
+        # This has to work for agg based and director based workflow
+        # prints metrics on the console.
+        self.runtime.stream_metrics()
+
+    def experiment_status(self) -> int:
+        # Aggregator will report experiment status to Director,
+        # which will send it here and from here to user.
+        return self.runtime.experiment_status()
 
     def _capture_instance_snapshot(self, kwargs):
         """
