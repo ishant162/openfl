@@ -108,6 +108,8 @@ setup(
         'openfl.experimental.component',
         'openfl.experimental.component.aggregator',
         'openfl.experimental.component.collaborator',
+        'openfl.experimental.component.director',
+        'openfl.experimental.component.envoy',
         'openfl.experimental.interface.cli',
         'openfl.experimental.interface',
         'openfl.experimental.interface.interactive_api',

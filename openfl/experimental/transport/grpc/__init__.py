@@ -6,6 +6,8 @@
 
 from openfl.experimental.transport.grpc.aggregator_client import AggregatorGRPCClient
 from openfl.experimental.transport.grpc.aggregator_server import AggregatorGRPCServer
+from openfl.experimental.transport.grpc.director_server import DirectorGRPCServer
+from openfl.experimental.transport.grpc.director_client import DirectorClient
 
 
 # FIXME: Not the right place for exceptions

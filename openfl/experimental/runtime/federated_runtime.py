@@ -80,7 +80,7 @@ class FederatedRuntime(Runtime):
         self.__federation = federation
 
     def prepare_workspace_archive(self) -> None:
-        self.extract_private_attrs()
+        # self.extract_private_attrs()
         self.__prepare_plan()
         self.__prepare_data()
 
@@ -89,8 +89,16 @@ class FederatedRuntime(Runtime):
         # extract private attributes from aggregator & collaborator.
         pass
 
-    def __prepare_plan(self) -> None:
+    def __prepare_plan(
+        self,
+        arguments_required_to_initialize_the_flow,
+        pickled_objects_name,
+    ) -> None:
         # Prepare plan.yaml
+        # Take plan template from openfl.experimental.interface.cli_helper.WORKSPACE "workspace/plan/plans/default/base_plan_interactive_api.yaml"
+        # parse the plan
+        # Fill the details for the new flow
+        # 
         pass
 
     def __prepare_data(self) -> None:

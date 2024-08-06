@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+service Director {
+    //Envoy RPCs
+    rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
+    rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
+}
+
+message SendConnectionRequest {
+    string envoy_name = 1;
+}
+
+message RequestAccepted {
+    bool accepted = 1;
+}
+
+message WaitExperimentRequest {
+    string collaborator_name = 1;
+  }
+  
+  message WaitExperimentResponse {
+    string experiment_name = 1;
+  }
