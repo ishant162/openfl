@@ -85,6 +85,7 @@ class Experiment:
                         aggregator_grpc_server=aggregator_grpc_server,
                     )
                 )
+                self.aggregator.run_flow()
                 await self.run_aggregator_atask
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)

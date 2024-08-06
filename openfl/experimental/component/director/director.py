@@ -31,6 +31,9 @@ class Director:
     # TODO: Need to Implement this
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
+        # In a infinite loop wait for experiment from experiment registry
+        # Once the experiment received from registry
+        # call experiment.start function
         pass
 
     # TODO: Need to Implement this

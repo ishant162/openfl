@@ -86,7 +86,8 @@ class Envoy:
                 time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
                 continue
 
-            # TODO: Need to proceed with received experiment
+            # Experiment received
+            # _run_collaborator
 
     # TODO: Think on how to implement this.
     #      What might be the health check about?
@@ -101,6 +102,8 @@ class Envoy:
     # TODO: To be implemented after experiment design
     def _run_collaborator(self, plan="plan/plan.yaml"):
         """Run the collaborator for the experiment running."""
+        # Use plan.get_collaborator function to get collaborator object
+        # call collaborator.run function
         pass
 
     def start(self):
