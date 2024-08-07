@@ -1,6 +1,15 @@
+# Copyright 2020-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+
+"""Director module."""
+
+import asyncio
+
 from pathlib import Path
 from typing import Callable, Union
 
+from openfl.experimental.component.director.experiment import Experiment
 
 class Director:
     """Director class."""
@@ -21,20 +30,34 @@ class Director:
         self.root_certificate = root_certificate
         self.private_key = private_key
         self.certificate = certificate
-        # self.experiments_registry = ExperimentsRegistry()
-        # self.col_exp_queues = defaultdict(asyncio.Queue)
-        # self.col_exp = {}
         self.review_plan_callback = review_plan_callback
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
 
-    # TODO: Need to Implement this
+    # TODO: Need to Implement start_experiment_execution_loop
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
         # In a infinite loop wait for experiment from experiment registry
         # Once the experiment received from registry
         # call experiment.start function
-        pass
+
+        await asyncio.sleep(10)
+        experiment = Experiment(
+            name='MNISTFlow',
+            archive_path='',
+            collaborators=[],
+            sender='',
+            init_tensor_dict={},
+            plan_path='plan/plan.yaml'
+        )
+
+        await experiment.start(
+            root_certificate=self.root_certificate,
+            certificate=self.certificate,
+            private_key=self.private_key,
+            tls=self.tls,
+            install_requirements=self.install_requirements,
+        )
 
     # TODO: Need to Implement this
     async def wait_experiment(self, envoy_name: str) -> str:

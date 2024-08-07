@@ -104,10 +104,7 @@ class FLSpec:
     @runtime.setter
     def runtime(self, runtime: Type[Runtime]) -> None:
         """Sets flow runtime"""
-        if isinstance(runtime, Runtime):
-            self._runtime = runtime
-        else:
-            raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
+        self._runtime = runtime
 
     def prepare_workspace_archive(self) -> None:
         # This will extract private attrs and make plan.yaml and data.yaml

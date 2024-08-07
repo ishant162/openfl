@@ -26,9 +26,9 @@ class FederatedRuntime(Runtime):
 
     def __init__(
         self,
-        aggregator: str,
-        collaborators: List[str],
-        federation: Type[Federation],
+        aggregator: str = None,
+        collaborators: List[str] = None,
+        federation: Type[Federation] = None,
         **kwargs,
     ) -> None:
         """
@@ -45,7 +45,7 @@ class FederatedRuntime(Runtime):
         super().__init__()
         self.aggregator = aggregator
         self.collaborators = collaborators
-        self.federation = federation
+        # self.federation = federation
 
     @property
     def aggregator(self) -> str:

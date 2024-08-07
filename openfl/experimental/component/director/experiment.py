@@ -10,8 +10,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Callable, Iterable, List, Union
 
-from openfl.federated import Plan
-from openfl.transport import AggregatorGRPCServer
+from openfl.experimental.federated import Plan
+from openfl.experimental.transport import AggregatorGRPCServer
 from openfl.utilities.workspace import ExperimentWorkspace
 
 logger = logging.getLogger(__name__)
@@ -67,26 +67,27 @@ class Experiment:
         try:
             logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
 
-            with ExperimentWorkspace(
-                experiment_name=self.name,
-                data_file_path=self.archive_path,
-                install_requirements=install_requirements,
-            ):
-                aggregator_grpc_server = self._create_aggregator_grpc_server(
-                    tls=tls,
-                    root_certificate=root_certificate,
-                    private_key=private_key,
-                    certificate=certificate,
-                )
-                self.aggregator = aggregator_grpc_server.aggregator
+            # with ExperimentWorkspace(
+            #     experiment_name=self.name,
+            #     data_file_path=self.archive_path,
+            #     install_requirements=install_requirements,
+            # ):
+            aggregator_grpc_server = self._create_aggregator_grpc_server(
+                tls=tls,
+                root_certificate=root_certificate,
+                private_key=private_key,
+                certificate=certificate,
+            )
+            self.aggregator = aggregator_grpc_server.aggregator
 
-                self.run_aggregator_atask = asyncio.create_task(
-                    self._run_aggregator_grpc_server(
-                        aggregator_grpc_server=aggregator_grpc_server,
-                    )
+            self.run_aggregator_atask = asyncio.create_task(
+                self._run_aggregator_grpc_server(
+                    aggregator_grpc_server=aggregator_grpc_server,
                 )
-                self.aggregator.run_flow()
-                await self.run_aggregator_atask
+            )
+            #TODO: Might need to improvise here
+            self.aggregator.run_flow()
+            await self.run_aggregator_atask
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
@@ -128,8 +129,8 @@ class Experiment:
         plan.authorized_cols = list(self.collaborators)
 
         logger.info("🧿 Created an Aggregator Server for %s experiment.", self.name)
-        aggregator_grpc_server = plan.interactive_api_get_server(
-            tensor_dict=self.init_tensor_dict,
+        aggregator_grpc_server = plan.get_server(
+            # tensor_dict=self.init_tensor_dict,
             root_certificate=root_certificate,
             certificate=certificate,
             private_key=private_key,

@@ -59,7 +59,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
     def start(self):
         """Launch the director GRPC server."""
         loop = asyncio.get_event_loop()
-        # TODO: Implement self.director.start_experiment_execution_loop()
         loop.create_task(self.director.start_experiment_execution_loop())
         loop.run_until_complete(self._run_server())
 
