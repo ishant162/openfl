@@ -4,36 +4,16 @@
 aggregator :
   defaults : plan/defaults/aggregator.yaml
   template : openfl.component.Aggregator
-  settings :
-    init_state_path : save/init.pbuf
-    best_state_path : save/best.pbuf
-    last_state_path : save/last.pbuf
-    rounds_to_train : 10
+  settings : {}
 
 collaborator :
   defaults : plan/defaults/collaborator.yaml
   template : openfl.component.Collaborator
-  settings :
-    delta_updates    : false
-    opt_treatment    : RESET
+  settings : {}
 
-data_loader :
-  defaults : plan/defaults/data_loader.yaml
-  template : src.tfmnist_inmemory.TensorFlowMNISTInMemory
-  settings :
-    collaborator_count : 2
-    data_group_name    : mnist
-    batch_size         : 256
-
-task_runner :
-  defaults : plan/defaults/task_runner.yaml
-  template : src.keras_cnn.KerasCNN
+federated_flow:
+  template: src.flow.MNISTFlow
+  settings: {}
 
 network :
   defaults : plan/defaults/network.yaml
-
-assigner :
-  defaults : plan/defaults/assigner.yaml
-
-tasks :
-  defaults : plan/defaults/tasks_keras.yaml
