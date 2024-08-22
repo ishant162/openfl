@@ -149,6 +149,26 @@ class Aggregator:
         """
         return 10
 
+    # Async version of run_flow()
+    async def run_experiment(self) -> None:
+        """
+        Start the execution and run flow until transition.
+        """
+        # Start function will be the first step if any flow
+        f_name = "start"
+
+        while True:
+            next_step = self.do_task(f_name)
+
+            # TODO: Add collaborator handling.
+
+            if self.time_to_quit:
+                self.logger.info("Experiment Completed.")
+                self.quit_job_sent_to = self.authorized_cols
+                break
+
+            f_name = next_step
+
     def run_flow(self) -> None:
         """Start the execution and run flow until transition."""
         # Start function will be the first step if any flow

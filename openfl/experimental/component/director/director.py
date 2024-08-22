@@ -5,11 +5,11 @@
 """Director module."""
 
 import asyncio
-
 from pathlib import Path
 from typing import Callable, Union
 
 from openfl.experimental.component.director.experiment import Experiment
+
 
 class Director:
     """Director class."""
@@ -34,21 +34,23 @@ class Director:
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
 
-    # TODO: Need to Implement start_experiment_execution_loop
+    # TODO: Need to Implement start_experiment_execution_loop properly
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
         # In a infinite loop wait for experiment from experiment registry
         # Once the experiment received from registry
         # call experiment.start function
 
-        await asyncio.sleep(10)
+        # TODO: Implement this with Experiment registry context
+
+        await asyncio.sleep(5)
         experiment = Experiment(
-            name='MNISTFlow',
-            archive_path='',
+            name="FederatedFlow_MNIST_Watermarking",
+            archive_path="",
             collaborators=[],
-            sender='',
+            sender="",
             init_tensor_dict={},
-            plan_path='plan/plan.yaml'
+            plan_path="plan/plan.yaml",
         )
 
         await experiment.start(

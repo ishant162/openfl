@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import inspect
 from copy import deepcopy
-from typing import Callable, List, Type, Union
+from typing import TYPE_CHECKING, Callable, List, Type, Union
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-	from openfl.experimental.runtime import Runtime
-	from openfl.experimental.runtime import LocalRuntime
-	from openfl.experimental.runtime import FederatedRuntime
+    from openfl.experimental.runtime import Runtime
+    from openfl.experimental.runtime import LocalRuntime
+    from openfl.experimental.runtime import FederatedRuntime
+
 from openfl.experimental.utilities import (
     MetaflowInterface,
     SerializationError,

@@ -15,13 +15,15 @@ if TYPE_CHECKING:
     from openfl.experimental.interface import Collaborator
     from openfl.experimental.interface import Federation
 
-from typing import List, Type, Dict, Any, Union
+from typing import Any, Dict, List, Type, Union
+
 
 class ExperimentStatus:
     SUBMITTED = 0
     RUNNING = 1
     ERROR = 2
     FINISHED = 3
+
 
 class FederatedRuntime(Runtime):
     """Class for a federated runtime, derived from the Runtime class.
@@ -56,7 +58,8 @@ class FederatedRuntime(Runtime):
 
         if collaborators is not None:
             self.collaborators = collaborators
-	# self.federation = federation
+
+    # self.federation = federation
 
     @property
     def aggregator(self) -> str:
@@ -120,10 +123,12 @@ class FederatedRuntime(Runtime):
         pickled_objects_name,
     ) -> None:
         # Prepare plan.yaml
-        # Take plan template from openfl.experimental.interface.cli_helper.WORKSPACE "workspace/plan/plans/default/base_plan_interactive_api.yaml"
+        # Take plan template
+        # from openfl.experimental.interface.cli_helper.WORKSPACE
+        # "workspace/plan/plans/default/base_plan_interactive_api.yaml"
         # parse the plan
         # Fill the details for the new flow
-        # 
+        #
         pass
 
     def __prepare_data(self) -> None:

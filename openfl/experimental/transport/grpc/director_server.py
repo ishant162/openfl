@@ -94,16 +94,8 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
     # TODO: Need to Implement self.director.wait_experiment()
     async def WaitExperiment(self, request, context):
         """Request for wait an experiment."""
-        self.logger.debug(
-            f"Request WaitExperiment received from envoy {request.collaborator_name}"
-        )
-        experiment_name = await self.director.wait_experiment(
-            request.collaborator_name
-        )
-        self.logger.debug(
-            f"Experiment {experiment_name} is ready for {request.collaborator_name}"
-        )
+        self.logger.debug(f"Request WaitExperiment received from envoy {request.collaborator_name}")
+        experiment_name = await self.director.wait_experiment(request.collaborator_name)
+        self.logger.debug(f"Experiment {experiment_name} is ready for {request.collaborator_name}")
 
-        return director_pb2.WaitExperimentResponse(
-            experiment_name=experiment_name
-        )
+        return director_pb2.WaitExperimentResponse(experiment_name=experiment_name)

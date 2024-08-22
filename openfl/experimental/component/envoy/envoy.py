@@ -6,9 +6,7 @@ from pathlib import Path
 from typing import Callable, Optional, Type, Union
 
 from openfl.experimental.transport.grpc.director_client import DirectorClient
-from openfl.plugins.processing_units_monitor.cuda_device_monitor import (
-    CUDADeviceMonitor,
-)
+from openfl.plugins.processing_units_monitor.cuda_device_monitor import CUDADeviceMonitor
 
 DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
 
@@ -34,20 +32,10 @@ class Envoy:
         """Initialize a envoy object."""
         self.name = envoy_name
         self.root_certificate = (
-            Path(root_certificate).absolute()
-            if root_certificate is not None
-            else None
+            Path(root_certificate).absolute() if root_certificate is not None else None
         )
-        self.private_key = (
-            Path(private_key).absolute()
-            if root_certificate is not None
-            else None
-        )
-        self.certificate = (
-            Path(certificate).absolute()
-            if root_certificate is not None
-            else None
-        )
+        self.private_key = Path(private_key).absolute() if root_certificate is not None else None
+        self.certificate = Path(certificate).absolute() if root_certificate is not None else None
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,

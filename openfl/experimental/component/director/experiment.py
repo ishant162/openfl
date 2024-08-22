@@ -67,11 +67,7 @@ class Experiment:
         try:
             logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
 
-            # with ExperimentWorkspace(
-            #     experiment_name=self.name,
-            #     data_file_path=self.archive_path,
-            #     install_requirements=install_requirements,
-            # ):
+            # TODO: To be implemented with ExperimentWorkspace context
             aggregator_grpc_server = self._create_aggregator_grpc_server(
                 tls=tls,
                 root_certificate=root_certificate,
@@ -79,15 +75,12 @@ class Experiment:
                 certificate=certificate,
             )
             self.aggregator = aggregator_grpc_server.aggregator
-
-            self.run_aggregator_atask = asyncio.create_task(
+            await asyncio.gather(
                 self._run_aggregator_grpc_server(
                     aggregator_grpc_server=aggregator_grpc_server,
-                )
+                ),
+                self.aggregator.run_experiment(),
             )
-            #TODO: Might need to improvise here
-            self.aggregator.run_flow()
-            await self.run_aggregator_atask
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
@@ -156,9 +149,8 @@ class Experiment:
         except KeyboardInterrupt:
             pass
         finally:
-            grpc_server.stop(0)
-            # Temporary solution to free RAM used by TensorDB
-            aggregator_grpc_server.aggregator.tensor_db.clean_up(0)
+            pass
+            # grpc_server.stop(0)
 
 
 class ExperimentsRegistry:

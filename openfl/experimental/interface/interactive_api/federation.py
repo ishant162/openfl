@@ -3,7 +3,9 @@
 """Federation API module."""
 
 from typing import Dict, Union
+
 from openfl.transport.grpc.director_client import DirectorClient
+
 
 class Federation:
     """

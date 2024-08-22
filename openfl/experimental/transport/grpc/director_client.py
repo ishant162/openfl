@@ -25,9 +25,7 @@ class DirectorClient:
         self.envoy_name = envoy_name
         director_addr = f"{director_host}:{director_port}"
         if not tls:
-            channel = grpc.insecure_channel(
-                director_addr, options=channel_options
-            )
+            channel = grpc.insecure_channel(director_addr, options=channel_options)
         else:
             if not (root_certificate and private_key and certificate):
                 raise Exception("No certificates provided")
@@ -39,18 +37,14 @@ class DirectorClient:
                 with open(certificate, "rb") as f:
                     certificate_b = f.read()
             except FileNotFoundError as exc:
-                raise Exception(
-                    f"Provided certificate file is not exist: {exc.filename}"
-                )
+                raise Exception(f"Provided certificate file is not exist: {exc.filename}")
 
             credentials = grpc.ssl_channel_credentials(
                 root_certificates=root_certificate_b,
                 private_key=private_key_b,
                 certificate_chain=certificate_b,
             )
-            channel = grpc.secure_channel(
-                director_addr, credentials, options=channel_options
-            )
+            channel = grpc.secure_channel(director_addr, credentials, options=channel_options)
         self.stub = director_pb2_grpc.DirectorStub(channel)
         self.logger = logging.getLogger(__name__)
 
@@ -67,9 +61,7 @@ class DirectorClient:
     def wait_experiment(self):
         """Wait an experiment data from the director."""
         self.logger.info("Waiting for an experiment to run...")
-        request = director_pb2.WaitExperimentRequest(
-            collaborator_name=self.envoy_name
-        )
+        request = director_pb2.WaitExperimentRequest(collaborator_name=self.envoy_name)
         response = self.stub.WaitExperiment(request)
         # self.logger.info(f'New experiment received: {response}')
         experiment_name = response.experiment_name
