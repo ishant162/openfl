@@ -246,7 +246,7 @@ class Plan:
                 int(self.hash[:8], 16) % (60999 - 49152) + 49152
             )
 
-    def get_aggregator(self):
+    def get_aggregator(self, shard_descriptor=None):
         """Get federation aggregator."""
         defaults = self.config.get(
             "aggregator",
@@ -258,7 +258,7 @@ class Plan:
         defaults[SETTINGS]["authorized_cols"] = self.authorized_cols
 
         private_attrs_callable, private_attrs_kwargs, private_attributes = self.get_private_attr(
-            "aggregator"
+            "aggregator", shard_descriptor
         )
         defaults[SETTINGS]["private_attributes_callable"] = private_attrs_callable
         defaults[SETTINGS]["private_attributes_kwargs"] = private_attrs_kwargs
@@ -365,6 +365,7 @@ class Plan:
         root_certificate=None,
         private_key=None,
         certificate=None,
+        shard_descriptor=None,
         **kwargs,
     ):
         """Get gRPC server of the aggregator instance."""
@@ -384,7 +385,7 @@ class Plan:
         server_args["certificate"] = certificate
         server_args["private_key"] = private_key
 
-        server_args["aggregator"] = self.get_aggregator()
+        server_args["aggregator"] = self.get_aggregator(shard_descriptor)
 
         if self.server_ is None:
             self.server_ = AggregatorGRPCServer(**server_args)
@@ -432,10 +433,13 @@ class Plan:
         defaults[SETTINGS] = import_nested_settings(defaults[SETTINGS])
         return defaults
 
-    def get_private_attr(self, private_attr_name=None):
+    def get_private_attr(self, private_attr_name=None, shard_descriptor=None):
         private_attrs_callable = None
         private_attrs_kwargs = {}
         private_attributes = {}
+
+        if shard_descriptor:
+            return None, None, shard_descriptor.get_private_attributes()
 
         data_yaml = "plan/data.yaml"
 

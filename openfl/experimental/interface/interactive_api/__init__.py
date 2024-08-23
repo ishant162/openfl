@@ -3,3 +3,4 @@
 """openfl.experimental.interface.interactive_api package."""
 
 from openfl.experimental.interface.interactive_api.federation import Federation
+from openfl.experimental.interface.interactive_api.shard_descriptor import ShardDescriptor

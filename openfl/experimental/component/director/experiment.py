@@ -60,7 +60,7 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        install_requirements: bool = False,
+        shard_descriptor=None,
     ):
         """Run experiment."""
         self.status = Status.IN_PROGRESS
@@ -73,6 +73,7 @@ class Experiment:
                 root_certificate=root_certificate,
                 private_key=private_key,
                 certificate=certificate,
+                shard_descriptor=shard_descriptor,
             )
             self.aggregator = aggregator_grpc_server.aggregator
             await asyncio.gather(
@@ -117,6 +118,7 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
+        shard_descriptor=None,
     ) -> AggregatorGRPCServer:
         plan = Plan.parse(plan_config_path=self.plan_path)
         plan.authorized_cols = list(self.collaborators)
@@ -128,6 +130,7 @@ class Experiment:
             certificate=certificate,
             private_key=private_key,
             tls=tls,
+            shard_descriptor=shard_descriptor,
         )
         return aggregator_grpc_server
 

@@ -21,6 +21,7 @@ class Director:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
+        shard_descriptor=None,
         review_plan_callback: Union[None, Callable] = None,
         envoy_health_check_period: int = 60,
         install_requirements: bool = False
@@ -30,6 +31,7 @@ class Director:
         self.root_certificate = root_certificate
         self.private_key = private_key
         self.certificate = certificate
+        self.shard_descriptor = shard_descriptor
         self.review_plan_callback = review_plan_callback
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
@@ -58,7 +60,7 @@ class Director:
             certificate=self.certificate,
             private_key=self.private_key,
             tls=self.tls,
-            install_requirements=self.install_requirements,
+            shard_descriptor=self.shard_descriptor,
         )
 
     # TODO: Need to Implement this

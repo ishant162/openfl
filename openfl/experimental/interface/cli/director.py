@@ -5,6 +5,7 @@
 import logging
 import shutil
 import sys
+from importlib import import_module
 from pathlib import Path
 
 import click
@@ -115,12 +116,16 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
     if config.settings.review_experiment:
         overwritten_review_plan_callback = review_plan_callback
 
+    # Instantiate Shard Descriptor
+    shard_descriptor = shard_descriptor_from_config(config.get("shard_descriptor", {}))
+
     director_server = DirectorGRPCServer(
         director_cls=Director,
         tls=tls,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,
+        shard_descriptor=shard_descriptor,
         listen_host=config.settings.listen_host,
         listen_port=config.settings.listen_port,
         review_plan_callback=overwritten_review_plan_callback,
@@ -151,3 +156,25 @@ def create(director_path):
     (director_path / "cert").mkdir(parents=True, exist_ok=True)
     (director_path / "logs").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(WORKSPACE / "default/director.yaml", director_path / "director.yaml")
+
+
+def shard_descriptor_from_config(shard_config: dict):
+    """Build a shard descriptor from config.
+
+    Args:
+        shard_config (dict): Shard configuration.
+
+    Returns:
+        instance: Shard descriptor instance.
+    """
+    template = shard_config.get("template")
+    if not template:
+        raise Exception("You should define a shard " "descriptor template in the envoy config")
+    class_name = template.split(".")[-1]
+    module_path = ".".join(template.split(".")[:-1])
+    params = shard_config.get("params", {})
+
+    module = import_module(module_path)
+    instance = getattr(module, class_name)(**params)
+
+    return instance
