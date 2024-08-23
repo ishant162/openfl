@@ -1,0 +1,7 @@
+settings:
+  listen_host: localhost
+  listen_port: 50050
+  envoy_health_check_period: 5  # in seconds
+
+shard_descriptor:
+  template: src.aggregator_shard_descriptor.AggregatorShardDescriptor
