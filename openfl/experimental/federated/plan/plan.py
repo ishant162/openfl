@@ -257,9 +257,15 @@ class Plan:
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
         defaults[SETTINGS]["authorized_cols"] = self.authorized_cols
 
-        private_attrs_callable, private_attrs_kwargs, private_attributes = self.get_private_attr(
-            "aggregator", shard_descriptor
-        )
+        if shard_descriptor:
+            private_attributes = shard_descriptor.get_private_attributes()
+            private_attrs_callable, private_attrs_kwargs = None, None
+        else:
+            private_attrs_callable, private_attrs_kwargs, private_attributes = (
+                self.get_private_attr(
+                    "aggregator",
+                )
+            )
         defaults[SETTINGS]["private_attributes_callable"] = private_attrs_callable
         defaults[SETTINGS]["private_attributes_kwargs"] = private_attrs_kwargs
         defaults[SETTINGS]["private_attributes"] = private_attributes
@@ -433,13 +439,10 @@ class Plan:
         defaults[SETTINGS] = import_nested_settings(defaults[SETTINGS])
         return defaults
 
-    def get_private_attr(self, private_attr_name=None, shard_descriptor=None):
+    def get_private_attr(self, private_attr_name=None):
         private_attrs_callable = None
         private_attrs_kwargs = {}
         private_attributes = {}
-
-        if shard_descriptor:
-            return None, None, shard_descriptor.get_private_attributes()
 
         data_yaml = "plan/data.yaml"
 
