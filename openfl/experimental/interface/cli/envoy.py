@@ -14,7 +14,6 @@ from click import group, option, pass_context
 from dynaconf import Validator
 
 from openfl.experimental.interface.cli.cli_helper import WORKSPACE
-from openfl.interface.cli import review_plan_callback
 from openfl.utilities import click_types, merge_configs
 from openfl.utilities.path_check import is_directory_traversal
 
@@ -121,40 +120,18 @@ def start_(
     if config.certificate:
         config.certificate = Path(config.certificate).absolute()
 
-    # Parse envoy parameters
-    envoy_params = config.get("params", {})
-
-    # Build optional plugin components
-    optional_plugins_section = config.get("optional_plugin_components")
-    if optional_plugins_section is not None:
-        for plugin_name, plugin_settings in optional_plugins_section.items():
-            template = plugin_settings.get("template")
-            if not template:
-                raise Exception("You should put a template" f"for plugin {plugin_name}")
-            module_path, _, class_name = template.rpartition(".")
-            plugin_params = plugin_settings.get("params", {})
-
-            module = import_module(module_path)
-            instance = getattr(module, class_name)(**plugin_params)
-            envoy_params[plugin_name] = instance
-
-    # We pass the `review_experiment` callback only if it is needed.
-    # Otherwise we pass None.
-    overwritten_review_plan_callback = None
-    if envoy_params.review_experiment:
-        overwritten_review_plan_callback = review_plan_callback
-    del envoy_params.review_experiment
+    # Instantiate Shard Descriptor
+    shard_descriptor = shard_descriptor_from_config(config.get("shard_descriptor", {}))
 
     envoy = Envoy(
         envoy_name=envoy_name,
         director_host=director_host,
         director_port=director_port,
+        shard_descriptor=shard_descriptor,
         tls=tls,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,
-        review_plan_callback=overwritten_review_plan_callback,
-        **envoy_params,
     )
 
     envoy.start()
@@ -189,7 +166,7 @@ def shard_descriptor_from_config(shard_config: dict):
         raise Exception("You should define a shard " "descriptor template in the envoy config")
     class_name = template.split(".")[-1]
     module_path = ".".join(template.split(".")[:-1])
-    params = shard_config.get("params", {})
+    params = shard_config.get("settings", {})
 
     module = import_module(module_path)
     instance = getattr(module, class_name)(**params)

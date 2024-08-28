@@ -299,6 +299,7 @@ class Plan:
         private_key=None,
         certificate=None,
         client=None,
+        shard_descriptor=None,
     ):
         """Get collaborator."""
         defaults = self.config.get(
@@ -310,9 +311,13 @@ class Plan:
         defaults[SETTINGS]["aggregator_uuid"] = self.aggregator_uuid
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
 
-        private_attrs_callable, private_attrs_kwargs, private_attributes = self.get_private_attr(
-            collaborator_name
-        )
+        if shard_descriptor:
+            private_attributes = shard_descriptor.get_private_attributes()
+            private_attrs_callable, private_attrs_kwargs = None, None
+        else:
+            private_attrs_callable, private_attrs_kwargs, private_attributes = (
+                self.get_private_attr(collaborator_name)
+            )
         defaults[SETTINGS]["private_attributes_callable"] = private_attrs_callable
         defaults[SETTINGS]["private_attributes_kwargs"] = private_attrs_kwargs
         defaults[SETTINGS]["private_attributes"] = private_attributes

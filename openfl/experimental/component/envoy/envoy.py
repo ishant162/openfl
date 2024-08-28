@@ -3,10 +3,11 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable, Optional, Type, Union
+from typing import Optional, Type, Union
 
+from openfl.experimental.federated import Plan
+from openfl.experimental.interface.interactive_api.shard_descriptor import ShardDescriptor
 from openfl.experimental.transport.grpc.director_client import DirectorClient
-from openfl.plugins.processing_units_monitor.cuda_device_monitor import CUDADeviceMonitor
 
 DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
 
@@ -20,17 +21,15 @@ class Envoy:
         envoy_name: str,
         director_host: str,
         director_port: int,
+        shard_descriptor: Type[ShardDescriptor],
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
-        install_requirements: bool = True,
-        cuda_devices: Union[tuple, list] = (),
-        cuda_device_monitor: Optional[Type[CUDADeviceMonitor]] = None,
-        review_plan_callback: Union[None, Callable] = None,
     ) -> None:
         """Initialize a envoy object."""
         self.name = envoy_name
+        self.shard_descriptor = shard_descriptor
         self.root_certificate = (
             Path(root_certificate).absolute() if root_certificate is not None else None
         )
@@ -46,13 +45,6 @@ class Envoy:
             certificate=certificate,
         )
         self.logger = logging.getLogger(__name__)
-        self.cuda_devices = tuple(cuda_devices)
-        self.install_requirements = install_requirements
-
-        self.review_plan_callback = review_plan_callback
-
-        # Optional plugins
-        self.cuda_device_monitor = cuda_device_monitor
 
         self.executor = ThreadPoolExecutor()
         self.running_experiments = {}
@@ -83,16 +75,27 @@ class Envoy:
         """Send health check to the director."""
         pass
 
-    # TODO: Get more info on this and its implementation
-    def _get_cuda_device_info(self):
-        pass
-
-    # TODO: To be implemented after experiment design
     def _run_collaborator(self, plan="plan/plan.yaml"):
-        """Run the collaborator for the experiment running."""
-        # Use plan.get_collaborator function to get collaborator object
-        # call collaborator.run function
-        pass
+        """
+        Run the collaborator for the experiment running.
+
+        Args:
+            plan: plan.yaml file path
+
+        Returns:
+            None
+        """
+        plan = Plan.parse(plan_config_path=Path(plan))
+        self.logger.info("🧿 Starting the Collaborator Service.")
+
+        col = plan.get_collaborator(
+            self.name,
+            self.root_certificate,
+            self.private_key,
+            self.certificate,
+            shard_descriptor=self.shard_descriptor,
+        )
+        col.run()
 
     def start(self):
         """Start the envoy."""
