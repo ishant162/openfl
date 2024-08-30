@@ -21,7 +21,7 @@ federated_flow:
   settings:
     model: null
     optimizer: null
-    n_rounds: 4
+    n_rounds: 2
     checkpoint: true
 
 

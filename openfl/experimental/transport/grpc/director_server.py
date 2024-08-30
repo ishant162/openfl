@@ -21,11 +21,11 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
-        shard_descriptor=None,
         review_plan_callback: Union[None, Callable] = None,
         listen_host: str = "[::]",
         listen_port: int = 50051,
         envoy_health_check_period: int = 0,
+        director_config=None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -42,9 +42,9 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
-            shard_descriptor=shard_descriptor,
             review_plan_callback=review_plan_callback,
             envoy_health_check_period=envoy_health_check_period,
+            director_config=director_config,
             **kwargs,
         )
         self.logger = logging.getLogger(__name__)

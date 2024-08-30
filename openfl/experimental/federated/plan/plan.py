@@ -246,7 +246,7 @@ class Plan:
                 int(self.hash[:8], 16) % (60999 - 49152) + 49152
             )
 
-    def get_aggregator(self, shard_descriptor=None):
+    def get_aggregator(self, director_config=None):
         """Get federation aggregator."""
         defaults = self.config.get(
             "aggregator",
@@ -257,9 +257,10 @@ class Plan:
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
         defaults[SETTINGS]["authorized_cols"] = self.authorized_cols
 
-        if shard_descriptor:
-            private_attributes = shard_descriptor.get_private_attributes()
-            private_attrs_callable, private_attrs_kwargs = None, None
+        if director_config:
+            private_attrs_callable, private_attrs_kwargs, private_attributes = (
+                self.get_private_attr_from_config(director_config)
+            )
         else:
             private_attrs_callable, private_attrs_kwargs, private_attributes = (
                 self.get_private_attr(
@@ -299,7 +300,8 @@ class Plan:
         private_key=None,
         certificate=None,
         client=None,
-        shard_descriptor=None,
+        tls=False,
+        envoy_config=None,
     ):
         """Get collaborator."""
         defaults = self.config.get(
@@ -311,9 +313,10 @@ class Plan:
         defaults[SETTINGS]["aggregator_uuid"] = self.aggregator_uuid
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
 
-        if shard_descriptor:
-            private_attributes = shard_descriptor.get_private_attributes()
-            private_attrs_callable, private_attrs_kwargs = None, None
+        if envoy_config:
+            private_attrs_callable, private_attrs_kwargs, private_attributes = (
+                self.get_private_attr_from_config(envoy_config)
+            )
         else:
             private_attrs_callable, private_attrs_kwargs, private_attributes = (
                 self.get_private_attr(collaborator_name)
@@ -332,6 +335,7 @@ class Plan:
                 root_certificate,
                 private_key,
                 certificate,
+                tls,
             )
 
         if self.collaborator_ is None:
@@ -347,6 +351,7 @@ class Plan:
         root_certificate=None,
         private_key=None,
         certificate=None,
+        tls=False,
     ):
         """Get gRPC client for the specified collaborator."""
         common_name = collaborator_name
@@ -362,6 +367,7 @@ class Plan:
         client_args["root_certificate"] = root_certificate
         client_args["certificate"] = certificate
         client_args["private_key"] = private_key
+        client_args["tls"] = tls
 
         client_args["aggregator_uuid"] = aggregator_uuid
         client_args["federation_uuid"] = federation_uuid
@@ -376,7 +382,8 @@ class Plan:
         root_certificate=None,
         private_key=None,
         certificate=None,
-        shard_descriptor=None,
+        tls=None,
+        director_config=None,
         **kwargs,
     ):
         """Get gRPC server of the aggregator instance."""
@@ -395,8 +402,9 @@ class Plan:
         server_args["root_certificate"] = root_certificate
         server_args["certificate"] = certificate
         server_args["private_key"] = private_key
+        server_args["tls"] = tls
 
-        server_args["aggregator"] = self.get_aggregator(shard_descriptor)
+        server_args["aggregator"] = self.get_aggregator(director_config)
 
         if self.server_ is None:
             self.server_ = AggregatorGRPCServer(**server_args)
@@ -493,3 +501,21 @@ class Plan:
                     private_attributes,
                 )
         return None, None, {}
+
+    def get_private_attr_from_config(self, config):
+        private_attrs_callable = None
+        private_attrs_kwargs = {}
+        private_attributes = {}
+
+        d = Plan.load(config)
+        callable_func = d.get("private_attribute_callable", {})
+        if callable_func is not None:
+            private_attrs_callable = {"template": d.get("private_attribute_callable")["template"]}
+            private_attrs_kwargs = self.import_kwargs_modules(d.get("private_attribute_callable"))[
+                "settings"
+            ]
+
+            if isinstance(private_attrs_callable, dict):
+                private_attrs_callable = Plan.import_(**private_attrs_callable)
+
+            return private_attrs_callable, private_attrs_kwargs, private_attributes

@@ -3,6 +3,7 @@
 
 
 """Experimental Aggregator module."""
+import asyncio
 import inspect
 import pickle
 import queue
@@ -157,17 +158,52 @@ class Aggregator:
         # Start function will be the first step if any flow
         f_name = "start"
 
+        self.logger.info(f"Starting round {self.current_round}...")
         while True:
             next_step = self.do_task(f_name)
-
-            # TODO: Add collaborator handling.
 
             if self.time_to_quit:
                 self.logger.info("Experiment Completed.")
                 self.quit_job_sent_to = self.authorized_cols
                 break
 
-            f_name = next_step
+            # Prepare queue for collaborator task, with clones
+            for k, v in self.__collaborator_tasks_queue.items():
+                if k in self.selected_collaborators:
+                    v.put((next_step, self.clones_dict[k]))
+                else:
+                    self.logger.info(f"Tasks will not be sent to {k}")
+
+            while not self.collaborator_task_results.is_set():
+                len_sel_collabs = len(self.selected_collaborators)
+                len_connected_collabs = len(self.connected_collaborators)
+                if len_connected_collabs < len_sel_collabs:
+                    # Waiting for collaborators to connect.
+                    self.logger.info(
+                        "Waiting for "
+                        + f"{len_connected_collabs}/{len_sel_collabs}"
+                        + " collaborators to connect..."
+                    )
+                elif self.tasks_sent_to_collaborators != len_sel_collabs:
+                    self.logger.info(
+                        "Waiting for "
+                        + f"{self.tasks_sent_to_collaborators}/{len_sel_collabs}"
+                        + " to make requests for tasks..."
+                    )
+                else:
+                    # Waiting for selected collaborators to send the results.
+                    self.logger.info(
+                        "Waiting for "
+                        + f"{self.collaborators_counter}/{len_sel_collabs}"
+                        + " collaborators to send results..."
+                    )
+                await asyncio.sleep(Aggregator._get_sleep_time())
+
+            self.collaborator_task_results.clear()
+            f_name = self.next_step
+            if hasattr(self, "instance_snapshot"):
+                self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
+                delattr(self, "instance_snapshot")
 
     def run_flow(self) -> None:
         """Start the execution and run flow until transition."""

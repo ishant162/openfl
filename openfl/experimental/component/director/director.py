@@ -21,17 +21,17 @@ class Director:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        shard_descriptor=None,
+        director_config: dict = None,
         review_plan_callback: Union[None, Callable] = None,
         envoy_health_check_period: int = 60,
-        install_requirements: bool = False
+        install_requirements: bool = False,
     ) -> None:
         """Initialize a director object."""
         self.tls = tls
         self.root_certificate = root_certificate
         self.private_key = private_key
         self.certificate = certificate
-        self.shard_descriptor = shard_descriptor
+        self.director_config = director_config
         self.review_plan_callback = review_plan_callback
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
@@ -49,7 +49,7 @@ class Director:
         experiment = Experiment(
             name="FederatedFlow_MNIST_Watermarking",
             archive_path="",
-            collaborators=[],
+            collaborators=["col1"],
             sender="",
             init_tensor_dict={},
             plan_path="plan/plan.yaml",
@@ -60,7 +60,7 @@ class Director:
             certificate=self.certificate,
             private_key=self.private_key,
             tls=self.tls,
-            shard_descriptor=self.shard_descriptor,
+            director_config=self.director_config,
         )
 
     # TODO: Need to Implement this

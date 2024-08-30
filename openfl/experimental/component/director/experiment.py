@@ -60,7 +60,7 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        shard_descriptor=None,
+        director_config: dict = None,
     ):
         """Run experiment."""
         self.status = Status.IN_PROGRESS
@@ -73,7 +73,7 @@ class Experiment:
                 root_certificate=root_certificate,
                 private_key=private_key,
                 certificate=certificate,
-                shard_descriptor=shard_descriptor,
+                director_config=director_config,
             )
             self.aggregator = aggregator_grpc_server.aggregator
             await asyncio.gather(
@@ -118,19 +118,18 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        shard_descriptor=None,
+        director_config: dict = None,
     ) -> AggregatorGRPCServer:
         plan = Plan.parse(plan_config_path=self.plan_path)
         plan.authorized_cols = list(self.collaborators)
 
         logger.info("🧿 Created an Aggregator Server for %s experiment.", self.name)
         aggregator_grpc_server = plan.get_server(
-            # tensor_dict=self.init_tensor_dict,
             root_certificate=root_certificate,
             certificate=certificate,
             private_key=private_key,
             tls=tls,
-            shard_descriptor=shard_descriptor,
+            director_config=director_config,
         )
         return aggregator_grpc_server
 
@@ -144,16 +143,16 @@ class Experiment:
         grpc_server.start()
         logger.info("Starting Aggregator gRPC Server")
 
-        try:
-            while not aggregator_grpc_server.aggregator.all_quit_jobs_sent():
-                # Awaiting quit job sent to collaborators
-                await asyncio.sleep(10)
-            logger.debug("Aggregator sent quit jobs calls to all collaborators")
-        except KeyboardInterrupt:
-            pass
-        finally:
-            pass
-            # grpc_server.stop(0)
+        # try:
+        #     while not aggregator_grpc_server.aggregator.all_quit_jobs_sent():
+        #         # Awaiting quit job sent to collaborators
+        #         await asyncio.sleep(10)
+        #     logger.debug("Aggregator sent quit jobs calls to all collaborators")
+        # except KeyboardInterrupt:
+        #     pass
+        # finally:
+        # pass
+        # grpc_server.stop(0)
 
 
 class ExperimentsRegistry:

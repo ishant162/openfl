@@ -1,12 +1,10 @@
 import logging
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 from openfl.experimental.federated import Plan
-from openfl.experimental.interface.interactive_api.shard_descriptor import ShardDescriptor
 from openfl.experimental.transport.grpc.director_client import DirectorClient
 
 DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
@@ -21,7 +19,7 @@ class Envoy:
         envoy_name: str,
         director_host: str,
         director_port: int,
-        shard_descriptor: Type[ShardDescriptor],
+        envoy_config: dict = None,
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
@@ -29,17 +27,18 @@ class Envoy:
     ) -> None:
         """Initialize a envoy object."""
         self.name = envoy_name
-        self.shard_descriptor = shard_descriptor
+        self.envoy_config = envoy_config
         self.root_certificate = (
             Path(root_certificate).absolute() if root_certificate is not None else None
         )
         self.private_key = Path(private_key).absolute() if root_certificate is not None else None
         self.certificate = Path(certificate).absolute() if root_certificate is not None else None
+        self.tls = tls
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,
             envoy_name=envoy_name,
-            tls=tls,
+            tls=self.tls,
             root_certificate=root_certificate,
             private_key=private_key,
             certificate=certificate,
@@ -56,15 +55,16 @@ class Envoy:
     def run(self):
         """Run of the envoy working cycle."""
         while True:
-            try:
-                # Get experiment name
-                experiment_name = self.director_client.wait_experiment()
-                if not experiment_name:
-                    time.sleep(1000)
-            except Exception as exc:
-                self.logger.exception(f"Failed to get experiment: {exc}")
-                time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
-                continue
+            # try:
+            #     # Get experiment name
+            #     experiment_name = self.director_client.wait_experiment()
+            #     if not experiment_name:
+            #         time.sleep(1000)
+            # except Exception as exc:
+            #     self.logger.exception(f"Failed to get experiment: {exc}")
+            #     time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
+            #     continue
+            self._run_collaborator()
 
             # Experiment received
             # _run_collaborator
@@ -93,7 +93,8 @@ class Envoy:
             self.root_certificate,
             self.private_key,
             self.certificate,
-            shard_descriptor=self.shard_descriptor,
+            envoy_config=self.envoy_config,
+            tls=self.tls,
         )
         col.run()
 

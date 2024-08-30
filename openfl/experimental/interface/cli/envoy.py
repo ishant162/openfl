@@ -5,7 +5,6 @@
 import logging
 import shutil
 import sys
-from importlib import import_module
 from pathlib import Path
 
 import click
@@ -120,14 +119,11 @@ def start_(
     if config.certificate:
         config.certificate = Path(config.certificate).absolute()
 
-    # Instantiate Shard Descriptor
-    shard_descriptor = shard_descriptor_from_config(config.get("shard_descriptor", {}))
-
     envoy = Envoy(
         envoy_name=envoy_name,
         director_host=director_host,
         director_port=director_port,
-        shard_descriptor=shard_descriptor,
+        envoy_config=Path(envoy_config_path).absolute(),
         tls=tls,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
@@ -157,18 +153,3 @@ def create(envoy_path):
         envoy_path / "envoy_config.yaml",
     )
     shutil.copyfile(WORKSPACE / "default/requirements.txt", envoy_path / "requirements.txt")
-
-
-def shard_descriptor_from_config(shard_config: dict):
-    """Build a shard descriptor from config."""
-    template = shard_config.get("template")
-    if not template:
-        raise Exception("You should define a shard " "descriptor template in the envoy config")
-    class_name = template.split(".")[-1]
-    module_path = ".".join(template.split(".")[:-1])
-    params = shard_config.get("settings", {})
-
-    module = import_module(module_path)
-    instance = getattr(module, class_name)(**params)
-
-    return instance

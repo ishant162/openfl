@@ -145,7 +145,6 @@ class FederatedFlow_MNIST_Watermarking(FLSpec):  # NOQA N801
         """
         print("<Agg>: Start of flow ... ")
         self.collaborators = self.runtime.collaborators
-
         self.next(self.watermark_pretrain)
 
     @aggregator
@@ -153,65 +152,47 @@ class FederatedFlow_MNIST_Watermarking(FLSpec):  # NOQA N801
         """
         Pre-Train the Model before starting Federated Learning.
         """
-        if not self.watermark_pretraining_completed:
-
-            print("<Agg>: Performing Watermark Pre-training")
-
-            for i in range(self.pretrain_epochs):
-
-                watermark_pretrain_loss = train_model(
-                    self.model,
-                    self.watermark_pretrain_optimizer,
-                    self.watermark_data_loader,
-                    "<Agg>:",
-                    i,
-                    log=False,
-                )
-                watermark_pretrain_validation_score = inference(
-                    self.model, self.watermark_data_loader
-                )
-
-                print(f"<Agg>: Watermark Pretraining: Round: {i:<3}"
-                      + f" Loss: {watermark_pretrain_loss:<.6f}"
-                      + f" Acc: {watermark_pretrain_validation_score:<.6f}")
-
-            self.watermark_pretraining_completed = True
-
+        print(f"<Agg>: watermark_pretrain")
         self.next(
             self.aggregated_model_validation,
             foreach="collaborators",
         )
 
-    @aggregator
+    @collaborator
     def aggregated_model_validation(self):
         """
         Perform Aggregated Model validation on Collaborators.
         """
-        print("<Agg>:Performing aggregated_model_validation")
+        print(f"<Collab>: Aggregated Model validation")
+
         self.next(self.train)
 
-    @aggregator
+    @collaborator
     def train(self):
         """
         Train model on Local collab dataset.
         """
-        print("<Agg>:Performing train")
+        print("<Collab>: Performing Model Training on Local dataset ... ")
+        print(f'train_loader: {self.train_loader}')
+        print(f'train_loader: {self.test_loader}')
         self.next(self.local_model_validation)
 
-    @aggregator
+    @collaborator
     def local_model_validation(self):
         """
         Validate locally trained model.
         """
-        print("<Agg>:Performing local_model_validation")
+        print(
+            f"<Collab> Local model validation"
+        )
         self.next(self.join)
 
     @aggregator
-    def join(self):
+    def join(self, inputs):
         """
         Model aggregation step.
         """
-        print("<Agg>:Performing join")
+        print("<Agg>: Join ... ")
         self.next(self.watermark_retrain)
 
     @aggregator

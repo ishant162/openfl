@@ -1,6 +1,8 @@
-shard_descriptor:
+private_attribute_callable:
   settings:
     batch_size: 64
-    shard_num: 1
-    n_collaborators: 1
-  template: src.envoy_shard_descriptor.EnvoyShardDescriptor
+    index: 2
+    n_collaborators: 2
+    test_dataset: src.collaborator_private_attrs.test_dataset
+    train_dataset: src.collaborator_private_attrs.train_dataset
+  template: src.collaborator_private_attrs.collaborator_private_attrs
