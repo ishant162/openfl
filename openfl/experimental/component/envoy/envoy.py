@@ -55,19 +55,15 @@ class Envoy:
     def run(self):
         """Run of the envoy working cycle."""
         while True:
-            # try:
-            #     # Get experiment name
-            #     experiment_name = self.director_client.wait_experiment()
-            #     if not experiment_name:
-            #         time.sleep(1000)
-            # except Exception as exc:
-            #     self.logger.exception(f"Failed to get experiment: {exc}")
-            #     time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
-            #     continue
-            self._run_collaborator()
+            # TODO: Add functionality wait_experiment() and
+            # get_experiment_data() RPC
 
-            # Experiment received
-            # _run_collaborator
+            # TODO:
+            # 1. Collaborator will run with Experiment workspace
+            # context
+            # 2. Once experiment is received do some checks
+            # and run the collaborator
+            self._run_collaborator()
 
     # TODO: Think on how to implement this.
     #      What might be the health check about?
