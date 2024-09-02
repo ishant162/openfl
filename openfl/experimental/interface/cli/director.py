@@ -74,6 +74,7 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
     from openfl.experimental.component.director import Director
     from openfl.experimental.transport import DirectorGRPCServer
 
+    # TODO: Revisit (Private attributes callable: director_config path is provided)
     director_config_path = Path(director_config_path).absolute()
     logger.info("🧿 Starting the Director Service.")
     if is_directory_traversal(director_config_path):

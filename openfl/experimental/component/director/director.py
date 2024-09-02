@@ -49,7 +49,7 @@ class Director:
         experiment = Experiment(
             name="FederatedFlow_MNIST_Watermarking",
             archive_path="",
-            collaborators=["col1"],
+            collaborators=["col1", "col2"],
             sender="",
             init_tensor_dict={},
             plan_path="plan/plan.yaml",
