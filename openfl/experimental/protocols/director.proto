@@ -4,6 +4,9 @@ service Director {
     //Envoy RPCs
     rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
+
+    //Experiment RPCs
+    rpc SetNewExperiment(FileRequest) returns (FileResponse) {}
 }
 
 message SendConnectionRequest {
@@ -16,8 +19,17 @@ message RequestAccepted {
 
 message WaitExperimentRequest {
     string collaborator_name = 1;
-  }
-  
-  message WaitExperimentResponse {
+}
+
+message WaitExperimentResponse {
     string experiment_name = 1;
-  }
+}
+
+message FileRequest {
+    string file_name = 1;
+    bytes file_data = 2;
+}
+
+message FileResponse {
+    string status = 1;
+}

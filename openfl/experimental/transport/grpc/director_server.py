@@ -101,3 +101,9 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         self.logger.debug(f"Experiment {experiment_name} is ready for {request.collaborator_name}")
 
         return director_pb2.WaitExperimentResponse(experiment_name=experiment_name)
+
+    def SetNewExperiment(self, request, context):
+        """Set new experiment"""
+        self.logger.info("Got experiment zip from manager")
+        response = self.director.set_new_experiment(request.file_name, request.file_data)
+        return director_pb2.FileResponse(status=response)

@@ -15,7 +15,7 @@ class DirectorClient:
         *,
         director_host: str,
         director_port: int,
-        envoy_name: str,
+        envoy_name: str = None,
         tls: bool,
         root_certificate: str,
         private_key: str,
@@ -73,3 +73,14 @@ class DirectorClient:
     def get_experiment_data(self, experiment_name):
         """Get an experiment data from the director."""
         pass
+
+    def set_new_experiment(self, archive_path):
+        """
+        Sends experiment archive to the director
+        """
+        with open(archive_path, "rb") as f:
+            file_data = f.read()
+        response = self.stub.SetNewExperiment(
+            director_pb2.FileRequest(file_name="experiment.zip", file_data=file_data)
+        )
+        print(f"Server response: {response.status}")

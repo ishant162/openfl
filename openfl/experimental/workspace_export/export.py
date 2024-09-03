@@ -7,6 +7,7 @@ import ast
 import importlib
 import inspect
 import re
+import shutil
 import sys
 from logging import getLogger
 from pathlib import Path
@@ -251,6 +252,43 @@ class WorkspaceExport:
         instance.generate_requirements()
         instance.generate_plan_yaml()
         instance.generate_data_yaml()
+
+    @classmethod
+    def export_archive(cls, notebook_path: str, output_workspace: str) -> None:
+        """Exports workspace to `output_dir` and zips it.
+
+        Args:
+            notebook_path: Jupyter notebook path.
+            output_dir: Path for generated workspace directory.
+            template_workspace_path: Path to template workspace provided with
+                OpenFL (default="/tmp").
+
+        Returns:
+            None
+        """
+        instance = cls(notebook_path, output_workspace)
+        instance.generate_requirements()
+        instance.generate_plan_yaml()
+        arch_path = instance.generate_experiment_archive()
+
+        return arch_path
+
+    def generate_experiment_archive(self):
+        """
+        Create archive of the generated workspace
+
+        Returns:
+            None
+        """
+        parent_directory = self.output_workspace_path.parent
+        archive_path = parent_directory / "experiment"
+
+        # Create a ZIP archive of the generated_workspace directory
+        arch_path = shutil.make_archive(str(archive_path), "zip", str(self.output_workspace_path))
+
+        print(f"Archive created at {archive_path}.zip")
+
+        return arch_path
 
     # Have to do generate_requirements before anything else
     # because these !pip commands needs to be removed from python script

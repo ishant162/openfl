@@ -4,7 +4,7 @@
 
 from typing import Dict, Union
 
-from openfl.transport.grpc.director_client import DirectorClient
+from openfl.experimental.transport.grpc.director_client import DirectorClient
 
 
 class Federation:
@@ -20,7 +20,6 @@ class Federation:
         director: Dict[str, Union[str, int]],
         envoys: Dict[str, Union[str, int]],
         tls: bool,
-        client_id: str = None,
         cert_chain: str = None,
         api_cert: str = None,
         api_private_key: str = None,
@@ -28,9 +27,8 @@ class Federation:
         self.director = director
         self.envoy_details = envoys
         self._dir_client = DirectorClient(
-            client_id=client_id,
-            director_host=self.director["fqdn"],
-            director_port=self.director["port"],
+            director_host=self.director["director_node_fqdn"],
+            director_port=self.director["director_port"],
             tls=tls,
             # validate all certificates files are present
             # at given location

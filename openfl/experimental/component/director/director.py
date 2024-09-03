@@ -3,8 +3,8 @@
 
 
 """Director module."""
-
 import asyncio
+import os
 from pathlib import Path
 from typing import Callable, Union
 
@@ -67,3 +67,14 @@ class Director:
     async def wait_experiment(self, envoy_name: str) -> str:
         """Wait an experiment."""
         pass
+
+    def set_new_experiment(self, arch_name, arch_data):
+        """
+        Save the archive at the current path
+        """
+        file_path = os.path.join("./", arch_name)  # Ensure the path is './'
+        with open(file_path, "wb") as f:
+            f.write(arch_data)
+        print(f"File saved at {file_path}")
+
+        return "Success"
