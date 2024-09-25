@@ -236,42 +236,31 @@ class WorkspaceExport:
             yaml.safe_dump(data, y)
 
     @classmethod
-    def export(cls, notebook_path: str, output_workspace: str) -> None:
+    def export(
+        cls, notebook_path: str, output_workspace: str, federated_runtime: bool = False
+    ) -> None:
         """Exports workspace to `output_dir`.
 
         Args:
             notebook_path: Jupyter notebook path.
             output_dir: Path for generated workspace directory.
+            federated_runtime: Flag to check if called from federated_runtime
             template_workspace_path: Path to template workspace provided with
                 OpenFL (default="/tmp").
 
         Returns:
+            arch_path: Path to generated archive
+            or
             None
         """
         instance = cls(notebook_path, output_workspace)
         instance.generate_requirements()
         instance.generate_plan_yaml()
+
+        if federated_runtime:
+            arch_path = instance.generate_experiment_archive()
+            return arch_path
         instance.generate_data_yaml()
-
-    @classmethod
-    def export_archive(cls, notebook_path: str, output_workspace: str) -> None:
-        """Exports workspace to `output_dir` and zips it.
-
-        Args:
-            notebook_path: Jupyter notebook path.
-            output_dir: Path for generated workspace directory.
-            template_workspace_path: Path to template workspace provided with
-                OpenFL (default="/tmp").
-
-        Returns:
-            None
-        """
-        instance = cls(notebook_path, output_workspace)
-        instance.generate_requirements()
-        instance.generate_plan_yaml()
-        arch_path = instance.generate_experiment_archive()
-
-        return arch_path
 
     def generate_experiment_archive(self):
         """

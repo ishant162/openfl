@@ -110,8 +110,8 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            self.prepare_workspace_archive()
-            self.deploy_workspace()
+            archive_path = self.prepare_workspace_archive()
+            self.submit_workspace(archive_path)
         else:
             raise Exception("Runtime not implemented")
 
@@ -138,13 +138,19 @@ class FLSpec:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
         self._runtime = runtime
 
+    # TODO: Update Docstring
     def prepare_workspace_archive(self) -> None:
-        # This will extract private attrs and make plan.yaml and data.yaml
-        self.runtime.prepare_workspace_archive()
+        """
+        Prepares workspace archive using runtime
+        """
+        return self.runtime.prepare_workspace_archive()
 
-    def deploy_workspace(self) -> bool:
-        # Use runtime object to send experiment.zip to director
-        return self.runtime.submit_workspace()
+    # TODO: Update Docstring
+    def submit_workspace(self, archive_path):
+        """
+        Submits workspace archive to the director using runtime
+        """
+        self.runtime.submit_workspace(archive_path)
 
     def stream_metrics(self) -> None:
         # This has to work for agg based and director based workflow
