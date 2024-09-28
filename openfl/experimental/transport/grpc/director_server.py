@@ -88,10 +88,12 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         await self.server.wait_for_termination()
 
     def ConnectEnvoy(self, request, context):
-        self.logger.info(f"{request.envoy_name} is attempting to connect")
-        self.logger.info(f"{request.envoy_name} is connected")
-        accepted = True
-        return director_pb2.RequestAccepted(accepted=accepted)
+        self.logger.info(f"Envoy {request.envoy_name} is attempting to connect")
+        is_accepted = self.director.acknowledge_envoys(request.envoy_name)
+        if is_accepted:
+            self.logger.info(f"Envoy {request.envoy_name} is connected")
+
+        return director_pb2.RequestAccepted(accepted=is_accepted)
 
     # TODO: Need to Implement self.director.wait_experiment()
     async def WaitExperiment(self, request, context):
@@ -104,6 +106,8 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
     def SetNewExperiment(self, request, context):
         """Set new experiment"""
-        self.logger.info("Got experiment zip from manager")
-        response = self.director.set_new_experiment(request.file_name, request.file_data)
+        self.logger.info(f"Experiment {request.experiment_name} registered")
+        response = self.director.set_new_experiment(
+            request.file_name, request.file_data, request.experiment_name
+        )
         return director_pb2.FileResponse(status=response)

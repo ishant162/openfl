@@ -4,11 +4,11 @@
 
 """Director module."""
 import asyncio
-import os
+import time
 from pathlib import Path
 from typing import Callable, Union
 
-from openfl.experimental.component.director.experiment import Experiment
+from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 
 
 class Director:
@@ -36,6 +36,9 @@ class Director:
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
 
+        self.experiments_registry = ExperimentsRegistry()
+        self._connected_envoys = {}
+
     # TODO: Need to Implement start_experiment_execution_loop properly
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
@@ -45,36 +48,57 @@ class Director:
 
         # TODO: Implement this with Experiment registry context
 
-        await asyncio.sleep(5)
-        experiment = Experiment(
-            name="FederatedFlow_MNIST_Watermarking",
-            archive_path="",
-            collaborators=["col1", "col2"],
-            sender="",
-            init_tensor_dict={},
-            plan_path="plan/plan.yaml",
-        )
-
-        await experiment.start(
-            root_certificate=self.root_certificate,
-            certificate=self.certificate,
-            private_key=self.private_key,
-            tls=self.tls,
-            director_config=self.director_config,
-        )
+        loop = asyncio.get_event_loop()
+        while True:
+            async with self.experiments_registry.get_next_experiment() as experiment:
+                run_aggregator_future = loop.create_task(
+                    experiment.start(
+                        root_certificate=self.root_certificate,
+                        certificate=self.certificate,
+                        private_key=self.private_key,
+                        tls=self.tls,
+                        director_config=self.director_config,
+                        install_requirements=False,
+                    )
+                )
+                await run_aggregator_future
 
     # TODO: Need to Implement this
     async def wait_experiment(self, envoy_name: str) -> str:
         """Wait an experiment."""
         pass
 
-    def set_new_experiment(self, arch_name, arch_data):
+    # TODO: Instead of passing arch_data, try to leverage existing functionality
+    def set_new_experiment(self, arch_name, arch_data, experiment_name):
         """
         Save the archive at the current path
         """
-        file_path = os.path.join("./", arch_name)  # Ensure the path is './'
-        with open(file_path, "wb") as f:
-            f.write(arch_data)
-        print(f"File saved at {file_path}")
+        experiment = Experiment(
+            name=experiment_name,
+            archive_path=arch_name,
+            archive_data=arch_data,
+            collaborators=self.get_envoys(),
+            plan_path="plan/plan.yaml",
+        )
 
-        return "Success"
+        self.experiments_registry.add(experiment)
+        return True
+
+    # TODO: first cut version might need improvement
+    def acknowledge_envoys(self, envoy_name) -> bool:
+        """
+        Save the envoys
+        """
+        self._connected_envoys[envoy_name] = {
+            "is_online": True,
+            "is_experiment_running": False,
+            "last_updated": time.time(),
+        }
+        return True
+
+    # TODO: Add docstring, first cut version might need improvement
+    def get_envoys(self):
+        """
+        Returns list of connected envoys
+        """
+        return list(self._connected_envoys.keys())

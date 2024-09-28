@@ -8,11 +8,11 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, Iterable, List, Union
+from typing import Callable, List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
-from openfl.utilities.workspace import ExperimentWorkspace
+from openfl.experimental.utilities.workspace import ExperimentWorkspace
 
 logger = logging.getLogger(__name__)
 
@@ -35,20 +35,16 @@ class Experiment:
         *,
         name: str,
         archive_path: Union[Path, str],
+        archive_data,
         collaborators: List[str],
-        sender: str,
-        init_tensor_dict: dict,
         plan_path: Union[Path, str] = "plan/plan.yaml",
-        users: Iterable[str] = None,
     ) -> None:
         """Initialize an experiment object."""
         self.name = name
         self.archive_path = Path(archive_path).absolute()
+        self.archive_data = archive_data
         self.collaborators = collaborators
-        self.sender = sender
-        self.init_tensor_dict = init_tensor_dict
         self.plan_path = Path(plan_path)
-        self.users = set() if users is None else set(users)
         self.status = Status.PENDING
         self.aggregator = None
         self.run_aggregator_atask = None
@@ -61,6 +57,7 @@ class Experiment:
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
         director_config: dict = None,
+        install_requirements: bool = False,
     ):
         """Run experiment."""
         self.status = Status.IN_PROGRESS
@@ -68,20 +65,26 @@ class Experiment:
             logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
 
             # TODO: To be implemented with ExperimentWorkspace context
-            aggregator_grpc_server = self._create_aggregator_grpc_server(
-                tls=tls,
-                root_certificate=root_certificate,
-                private_key=private_key,
-                certificate=certificate,
-                director_config=director_config,
-            )
-            self.aggregator = aggregator_grpc_server.aggregator
-            await asyncio.gather(
-                self._run_aggregator_grpc_server(
-                    aggregator_grpc_server=aggregator_grpc_server,
-                ),
-                self.aggregator.run_experiment(),
-            )
+            with ExperimentWorkspace(
+                experiment_name=self.name,
+                data_file_path=self.archive_path,
+                arch_data=self.archive_data,
+                install_requirements=install_requirements,
+            ):
+                aggregator_grpc_server = self._create_aggregator_grpc_server(
+                    tls=tls,
+                    root_certificate=root_certificate,
+                    private_key=private_key,
+                    certificate=certificate,
+                    director_config=director_config,
+                )
+                self.aggregator = aggregator_grpc_server.aggregator
+                await asyncio.gather(
+                    self._run_aggregator_grpc_server(
+                        aggregator_grpc_server=aggregator_grpc_server,
+                    ),
+                    self.aggregator.run_experiment(),
+                )
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:

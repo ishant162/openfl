@@ -6,5 +6,5 @@ settings:
 private_attribute_callable:
   settings:
     batch_size: 50
-    watermark_data: src.aggregator_private_attrs.watermark_data
-  template: src.aggregator_private_attrs.aggregator_private_attrs
+    watermark_data: private_attributes.aggregator_private_attrs.watermark_data
+  template: private_attributes.aggregator_private_attrs.aggregator_private_attrs

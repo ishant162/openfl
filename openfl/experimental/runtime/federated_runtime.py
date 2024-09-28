@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -81,6 +82,7 @@ class FederatedRuntime(Runtime):
             )
 
         self.notebook_path = notebook_path
+        self.logger = logging.getLogger(__name__)
 
     @property
     def aggregator(self) -> str:
@@ -127,13 +129,13 @@ class FederatedRuntime(Runtime):
         """
         from openfl.experimental.workspace_export import WorkspaceExport
 
-        archive_path = WorkspaceExport.export(
+        archive_path, exp_name = WorkspaceExport.export(
             notebook_path=self.notebook_path,
             output_workspace="./generated_workspace",
             federated_runtime=True,
         )
 
-        return archive_path
+        return archive_path, exp_name
 
     def remove_workspace_archive(self, archive_path) -> None:
         """
@@ -141,14 +143,21 @@ class FederatedRuntime(Runtime):
         """
         os.remove(archive_path)
 
-    def submit_workspace(self, archive_path) -> int:
+    def submit_workspace(self, archive_path, exp_name) -> int:
         """
         Submits workspace archive to the director
         """
         try:
-            self._dir_client.set_new_experiment(archive_path=archive_path)
+            response = self._dir_client.set_new_experiment(
+                archive_path=archive_path, experiment_name=exp_name
+            )
         finally:
             self.remove_workspace_archive(archive_path)
+
+        if response.status:
+            self.logger.info("Experiment was submitted to the director!")
+        else:
+            self.logger.info("Experiment could not be submitted to the director.")
 
     def stream_metrics(self) -> Dict[str, Union[str, float]]:
         # Use _dir_client object to get metrics and report to user

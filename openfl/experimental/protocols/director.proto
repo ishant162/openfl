@@ -28,8 +28,9 @@ message WaitExperimentResponse {
 message FileRequest {
     string file_name = 1;
     bytes file_data = 2;
+    string experiment_name = 3;
 }
 
 message FileResponse {
-    string status = 1;
+    bool status = 1;
 }

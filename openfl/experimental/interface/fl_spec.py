@@ -110,8 +110,8 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            archive_path = self.prepare_workspace_archive()
-            self.submit_workspace(archive_path)
+            archive_path, exp_name = self.prepare_workspace_archive()
+            self.submit_workspace(archive_path, exp_name)
         else:
             raise Exception("Runtime not implemented")
 
@@ -146,11 +146,11 @@ class FLSpec:
         return self.runtime.prepare_workspace_archive()
 
     # TODO: Update Docstring
-    def submit_workspace(self, archive_path):
+    def submit_workspace(self, archive_path, exp_name):
         """
         Submits workspace archive to the director using runtime
         """
-        self.runtime.submit_workspace(archive_path)
+        self.runtime.submit_workspace(archive_path, exp_name)
 
     def stream_metrics(self) -> None:
         # This has to work for agg based and director based workflow
