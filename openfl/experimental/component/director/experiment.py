@@ -12,7 +12,7 @@ from typing import Callable, List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
-from openfl.experimental.utilities.workspace import ExperimentWorkspace
+from openfl.utilities.workspace import ExperimentWorkspace
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,12 @@ class Experiment:
         *,
         name: str,
         archive_path: Union[Path, str],
-        archive_data,
         collaborators: List[str],
         plan_path: Union[Path, str] = "plan/plan.yaml",
     ) -> None:
         """Initialize an experiment object."""
         self.name = name
         self.archive_path = Path(archive_path).absolute()
-        self.archive_data = archive_data
         self.collaborators = collaborators
         self.plan_path = Path(plan_path)
         self.status = Status.PENDING
@@ -68,7 +66,6 @@ class Experiment:
             with ExperimentWorkspace(
                 experiment_name=self.name,
                 data_file_path=self.archive_path,
-                arch_data=self.archive_data,
                 install_requirements=install_requirements,
             ):
                 aggregator_grpc_server = self._create_aggregator_grpc_server(

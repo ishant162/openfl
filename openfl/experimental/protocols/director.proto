@@ -5,8 +5,9 @@ service Director {
     rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
 
-    //Experiment RPCs
-    rpc SetNewExperiment(FileRequest) returns (FileResponse) {}
+    //Runtime RPCs
+    rpc SetNewExperiment(stream ExperimentInfo) returns (SetNewExperimentResponse) {}
+    rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
 }
 
 message SendConnectionRequest {
@@ -25,12 +26,23 @@ message WaitExperimentResponse {
     string experiment_name = 1;
 }
 
-message FileRequest {
-    string file_name = 1;
-    bytes file_data = 2;
-    string experiment_name = 3;
+message ExperimentData {
+    uint32 size = 1;
+    bytes npbytes = 2;
 }
 
-message FileResponse {
+message ExperimentInfo {
+    string name = 1;
+    repeated string collaborator_names = 2;
+    ExperimentData experiment_data = 3;
+}
+
+message SetNewExperimentResponse {
     bool status = 1;
+}
+
+message GetEnvoysRequest {}
+
+message GetEnvoysResponse {
+    repeated string columns = 1;
 }

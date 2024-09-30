@@ -149,7 +149,7 @@ class FederatedRuntime(Runtime):
         """
         try:
             response = self._dir_client.set_new_experiment(
-                archive_path=archive_path, experiment_name=exp_name
+                archive_path=archive_path, experiment_name=exp_name, col_names=self.get_envoys()
             )
         finally:
             self.remove_workspace_archive(archive_path)
@@ -171,6 +171,15 @@ class FederatedRuntime(Runtime):
         # Use _dir_client to comminicate to director to get experiment status
         # Return int as defined in ExperimentStatus
         return ExperimentStatus.SUBMITTED
+
+    def get_envoys(self):
+        """Gets Envoys
+
+        Returns:
+            list: A list of envoys.
+        """
+        envoys = self._dir_client.get_envoys()
+        return envoys
 
     def __repr__(self):
         return "FederatedRuntime"

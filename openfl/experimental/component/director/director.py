@@ -68,16 +68,17 @@ class Director:
         """Wait an experiment."""
         pass
 
-    # TODO: Instead of passing arch_data, try to leverage existing functionality
-    def set_new_experiment(self, arch_name, arch_data, experiment_name):
+    # TODO: Look what's use of sender and user in current implementation
+    async def set_new_experiment(
+        self, experiment_name, collaborator_names, experiment_archive_path
+    ):
         """
         Save the archive at the current path
         """
         experiment = Experiment(
             name=experiment_name,
-            archive_path=arch_name,
-            archive_data=arch_data,
-            collaborators=self.get_envoys(),
+            archive_path=experiment_archive_path,
+            collaborators=collaborator_names,
             plan_path="plan/plan.yaml",
         )
 

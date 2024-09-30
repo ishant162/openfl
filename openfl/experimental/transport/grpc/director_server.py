@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from pathlib import Path
 from typing import Callable, Optional, Union
 
@@ -104,10 +105,42 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.WaitExperimentResponse(experiment_name=experiment_name)
 
-    def SetNewExperiment(self, request, context):
-        """Set new experiment"""
-        self.logger.info(f"Experiment {request.experiment_name} registered")
-        response = self.director.set_new_experiment(
-            request.file_name, request.file_data, request.experiment_name
+    async def SetNewExperiment(self, stream, context):  # NOQA:N802
+        """Request to set new experiment.
+
+        Args:
+            stream (grpc.aio._MultiThreadedRendezvous): The stream of
+                experiment data.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            director_pb2.SetNewExperimentResponse: The response to the request.
+        """
+        data_file_path = self.root_dir / str(uuid.uuid4())
+        with open(data_file_path, "wb") as data_file:
+            async for request in stream:
+                if request.experiment_data.size == len(request.experiment_data.npbytes):
+                    data_file.write(request.experiment_data.npbytes)
+                else:
+                    raise Exception("Could not register new experiment")
+
+        is_accepted = await self.director.set_new_experiment(
+            experiment_name=request.name,
+            collaborator_names=request.collaborator_names,
+            experiment_archive_path=data_file_path,
         )
-        return director_pb2.FileResponse(status=response)
+
+        self.logger.info("Experiment %s registered", request.name)
+        return director_pb2.SetNewExperimentResponse(status=is_accepted)
+
+    async def GetEnvoys(self, request, context):  # NOQA:N802
+        """Get a status information about envoys.
+
+        Returns:
+            envoy_list
+        """
+        envoys = self.director.get_envoys()
+        envoy_list = director_pb2.GetEnvoysResponse()
+        envoy_list.columns.extend(envoys)
+
+        return envoy_list

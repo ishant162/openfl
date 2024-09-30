@@ -74,15 +74,64 @@ class DirectorClient:
         """Get an experiment data from the director."""
         pass
 
-    def set_new_experiment(self, archive_path, experiment_name):
+    def set_new_experiment(self, archive_path, experiment_name, col_names):
         """
-        Sends experiment archive to the director
+        Send the new experiment to director to launch.
+
+        Args:
+            experiment_name (str): The name of the experiment.
+            col_names (List[str]): The names of the collaborators.
+            archive_path (str): The path to the architecture.
+
+        Returns:
+            resp (director_pb2.SetNewExperimentResponse): The response from
+                the director.
         """
-        with open(archive_path, "rb") as f:
-            file_data = f.read()
-        response = self.stub.SetNewExperiment(
-            director_pb2.FileRequest(
-                file_name="experiment.zip", file_data=file_data, experiment_name=experiment_name
-            )
+        self.logger.info("Submitting new experiment %s to director", experiment_name)
+
+        experiment_info_gen = self._get_experiment_info(
+            arch_path=archive_path,
+            name=experiment_name,
+            col_names=col_names,
         )
-        return response
+        resp = self.stub.SetNewExperiment(experiment_info_gen)
+        return resp
+
+    def _get_experiment_info(self, arch_path, name, col_names):
+        """
+        Generate the experiment data request.
+
+        This method generates a stream of experiment data to be sent to the
+        director.
+
+        Args:
+            arch_path (str): The path to the architecture.
+            name (str): The name of the experiment.
+            col_names (List[str]): The names of the collaborators.
+
+        Yields:
+            director_pb2.ExperimentInfo: The experiment data.
+        """
+        with open(arch_path, "rb") as arch:
+            max_buffer_size = 2 * 1024 * 1024
+            chunk = arch.read(max_buffer_size)
+            while chunk != b"":
+                if not chunk:
+                    raise StopIteration
+                experiment_info = director_pb2.ExperimentInfo(
+                    name=name,
+                    collaborator_names=col_names,
+                )
+                experiment_info.experiment_data.size = len(chunk)
+                experiment_info.experiment_data.npbytes = chunk
+                yield experiment_info
+                chunk = arch.read(max_buffer_size)
+
+    def get_envoys(self):
+        """Get envoys info.
+
+        Returns:
+            envoys = List of envoys
+        """
+        envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
+        return envoys.columns

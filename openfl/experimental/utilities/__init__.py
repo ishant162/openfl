@@ -28,4 +28,3 @@ from openfl.experimental.utilities.transitions import (
     collaborator_to_aggregator,
     should_transfer,
 )
-from openfl.experimental.utilities.workspace import ExperimentWorkspace
