@@ -177,7 +177,8 @@ class Collaborator:
         self.logger.info("Waiting for tasks...")
         temp = self.client.get_tasks(self.name)
         self.round_number, next_step, clone_bytes, sleep_time, time_to_quit = temp
-
+        if time_to_quit:
+            return next_step, "", sleep_time, time_to_quit
         return next_step, pickle.loads(clone_bytes), sleep_time, time_to_quit
 
     def do_task(self, f_name: str, ctx: Any) -> Tuple:

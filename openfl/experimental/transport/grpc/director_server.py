@@ -96,16 +96,52 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.RequestAccepted(accepted=is_accepted)
 
-    # TODO: Need to Implement self.director.wait_experiment()
+    async def GetExperimentData(self, request, context):
+        """Receive experiment data.
+
+        Args:
+            request (director_pb2.GetExperimentDataRequest): The request from
+                the collaborator.
+            context (grpc.ServicerContext): The context of the request.
+
+        Yields:
+            director_pb2.ExperimentData: The experiment data.
+        """
+        data_file_path = self.director.get_experiment_data(request.experiment_name)
+        max_buffer_size = 2 * 1024 * 1024
+        with open(data_file_path, "rb") as df:
+            while True:
+                data = df.read(max_buffer_size)
+                if len(data) == 0:
+                    break
+                yield director_pb2.ExperimentData(size=len(data), npbytes=data)
+
     async def WaitExperiment(self, request, context):
-        """Request for wait an experiment."""
-        self.logger.debug(f"Request WaitExperiment received from envoy {request.collaborator_name}")
+        """
+        Request for wait an experiment.
+
+        Args:
+            request (director_pb2.WaitExperimentRequest): The request from the
+                collaborator.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            director_pb2.WaitExperimentResponse: The response to the request.
+        """
+        self.logger.debug(
+            "Request WaitExperiment received from envoy %s",
+            request.collaborator_name,
+        )
         experiment_name = await self.director.wait_experiment(request.collaborator_name)
-        self.logger.debug(f"Experiment {experiment_name} is ready for {request.collaborator_name}")
+        self.logger.debug(
+            "Experiment %s is ready for %s",
+            experiment_name,
+            request.collaborator_name,
+        )
 
         return director_pb2.WaitExperimentResponse(experiment_name=experiment_name)
 
-    async def SetNewExperiment(self, stream, context):  # NOQA:N802
+    async def SetNewExperiment(self, stream, context):
         """Request to set new experiment.
 
         Args:
@@ -133,7 +169,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         self.logger.info("Experiment %s registered", request.name)
         return director_pb2.SetNewExperimentResponse(status=is_accepted)
 
-    async def GetEnvoys(self, request, context):  # NOQA:N802
+    async def GetEnvoys(self, request, context):
         """Get a status information about envoys.
 
         Returns:

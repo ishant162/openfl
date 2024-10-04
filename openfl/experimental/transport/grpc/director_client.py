@@ -57,22 +57,49 @@ class DirectorClient:
 
         return response.accepted
 
-    # TODO: Need to modify this rpc later to get_experiment_data()
     def wait_experiment(self):
-        """Wait an experiment data from the director."""
+        """
+        Wait an experiment data from the director.
+
+        Returns:
+            experiment_name (str): The name of the experiment.
+        """
         self.logger.info("Waiting for an experiment to run...")
-        request = director_pb2.WaitExperimentRequest(collaborator_name=self.envoy_name)
-        response = self.stub.WaitExperiment(request)
-        # self.logger.info(f'New experiment received: {response}')
+        response = self.stub.WaitExperiment(self._get_experiment_data())
+        self.logger.info("New experiment received: %s", response)
         experiment_name = response.experiment_name
-        # if not experiment_name:
-        #     raise Exception('No experiment')
+        if not experiment_name:
+            raise Exception("No experiment")
+
         return experiment_name
 
-    # TODO: Need to implement this
     def get_experiment_data(self, experiment_name):
-        """Get an experiment data from the director."""
-        pass
+        """
+        Get an experiment data from the director.
+
+        Args:
+            experiment_name (str): The name of the experiment.
+
+        Returns:
+            data_stream (grpc._channel._MultiThreadedRendezvous): The data
+                stream of the experiment data.
+        """
+        self.logger.info("Getting experiment data for %s...", experiment_name)
+        request = director_pb2.GetExperimentDataRequest(
+            experiment_name=experiment_name, collaborator_name=self.envoy_name
+        )
+        data_stream = self.stub.GetExperimentData(request)
+
+        return data_stream
+
+    def _get_experiment_data(self):
+        """Generate the experiment data request.
+
+        Returns:
+            director_pb2.WaitExperimentRequest: The request for experiment
+                data.
+        """
+        return director_pb2.WaitExperimentRequest(collaborator_name=self.envoy_name)
 
     def set_new_experiment(self, archive_path, experiment_name, col_names):
         """

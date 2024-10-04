@@ -159,13 +159,13 @@ watermark_data = WatermarkDataset(
 
 def aggregator_private_attrs(watermark_data, batch_size):
     return {
-        "watermark_data_loader": torch.utils.data.DataLoader(
-            watermark_data, batch_size=batch_size, shuffle=True
-        ),
-        "pretrain_epochs": 25,
-        "retrain_epochs": 25,
-        "watermark_acc_threshold": 0.98,
-        "watermark_pretraining_completed": False,
+        # "watermark_data_loader": torch.utils.data.DataLoader(
+        #     watermark_data, batch_size=batch_size, shuffle=True
+        # ),
+        # "pretrain_epochs": 25,
+        # "retrain_epochs": 25,
+        # "watermark_acc_threshold": 0.98,
+        # "watermark_pretraining_completed": False,
     }
 
 

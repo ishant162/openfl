@@ -1,11 +1,14 @@
 import logging
 import sys
+import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport.grpc.director_client import DirectorClient
+from openfl.utilities.workspace import ExperimentWorkspace
 
 DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
 
@@ -24,6 +27,7 @@ class Envoy:
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
+        install_requirements: bool = False,
     ) -> None:
         """Initialize a envoy object."""
         self.name = envoy_name
@@ -34,6 +38,7 @@ class Envoy:
         self.private_key = Path(private_key).absolute() if root_certificate is not None else None
         self.certificate = Path(certificate).absolute() if root_certificate is not None else None
         self.tls = tls
+        self.install_requirements = install_requirements
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,
@@ -50,20 +55,51 @@ class Envoy:
         self.is_experiment_running = False
         self._health_check_future = None
 
-    # TODO: Need to implement self.director_client.get_experiment_data()
-    #      after experiment design
     def run(self):
         """Run of the envoy working cycle."""
         while True:
-            # TODO: Add functionality wait_experiment() and
-            # get_experiment_data() RPC
+            try:
+                # Wait for experiment
+                experiment_name = self.director_client.wait_experiment()
+                data_stream = self.director_client.get_experiment_data(experiment_name)
+            except Exception as exc:
+                self.logger.exception("Failed to get experiment: %s", exc)
+                time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
+                continue
+            data_file_path = self._save_data_stream_to_file(data_stream)
 
-            # TODO:
-            # 1. Collaborator will run with Experiment workspace
-            # context
-            # 2. Once experiment is received do some checks
-            # and run the collaborator
-            self._run_collaborator()
+            try:
+                with ExperimentWorkspace(
+                    experiment_name=f"{self.name}_{experiment_name}",
+                    data_file_path=data_file_path,
+                    install_requirements=self.install_requirements,
+                ):
+                    self.is_experiment_running = True
+                    self._run_collaborator()
+            except Exception as exc:
+                self.logger.exception("Collaborator failed with error: %s:", exc)
+                # TODO: Implement set_experiment_failed functionality
+            finally:
+                self.is_experiment_running = False
+
+    @staticmethod
+    def _save_data_stream_to_file(data_stream):
+        """Save data stream to file.
+
+        Args:
+            data_stream: The data stream to save.
+
+        Returns:
+            Path: The path to the saved data file.
+        """
+        data_file_path = Path(str(uuid.uuid4())).absolute()
+        with open(data_file_path, "wb") as data_file:
+            for response in data_stream:
+                if response.size == len(response.npbytes):
+                    data_file.write(response.npbytes)
+                else:
+                    raise Exception("Broken archive")
+        return data_file_path
 
     # TODO: Think on how to implement this.
     #      What might be the health check about?
@@ -95,13 +131,17 @@ class Envoy:
         col.run()
 
     def start(self):
-        """Start the envoy."""
-        is_accepted = self.director_client.connect_envoy(envoy_name=self.name)
-        if is_accepted:
-            self.logger.info(f"{self.name} was connected to the director")
-            # TODO: Submit send_health_check to self.executor
-            self.run()
-        else:
-            # Connection failed
-            self.logger.error(f"{self.name} failed to connect to the director")
+        """Start the envoy"""
+        try:
+            is_accepted = self.director_client.connect_envoy(envoy_name=self.name)
+        except Exception as exc:
+            self.logger.exception("Failed to connect envoy: %s", exc)
             sys.exit(1)
+        else:
+            if is_accepted:
+                self.logger.info(f"{self.name} was connected to the director")
+                self.run()
+            else:
+                # Connection failed
+                self.logger.error(f"{self.name} failed to connect to the director")
+                sys.exit(1)

@@ -4,6 +4,7 @@ service Director {
     //Envoy RPCs
     rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
+    rpc GetExperimentData(GetExperimentDataRequest) returns (stream ExperimentData) {}
 
     //Runtime RPCs
     rpc SetNewExperiment(stream ExperimentInfo) returns (SetNewExperimentResponse) {}
@@ -24,6 +25,11 @@ message WaitExperimentRequest {
 
 message WaitExperimentResponse {
     string experiment_name = 1;
+}
+
+message GetExperimentDataRequest {
+    string experiment_name = 1;
+    string collaborator_name = 2;
 }
 
 message ExperimentData {

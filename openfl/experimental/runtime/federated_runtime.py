@@ -44,9 +44,6 @@ class FederatedRuntime(Runtime):
         director: Dict = None,
         notebook_path: str = None,
         tls: bool = False,
-        cert_chain: str = None,
-        api_cert: str = None,
-        api_private_key: str = None,
         **kwargs,
     ) -> None:
         """Initializes the FederatedRuntime object.
@@ -76,12 +73,13 @@ class FederatedRuntime(Runtime):
                 tls=tls,
                 # validate all certificates files are present
                 # at given location
-                root_certificate=cert_chain,
-                private_key=api_private_key,
-                certificate=api_cert,
+                root_certificate=self.director["cert_chain"],
+                private_key=self.director["api_private_key"],
+                certificate=self.director["api_cert"],
             )
 
         self.notebook_path = notebook_path
+        self.kwargs = kwargs
         self.logger = logging.getLogger(__name__)
 
     @property

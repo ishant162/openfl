@@ -5,8 +5,9 @@
 """Director module."""
 import asyncio
 import time
+from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Union
+from typing import Callable, Iterable, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 
@@ -37,16 +38,12 @@ class Director:
         self.install_requirements = install_requirements
 
         self.experiments_registry = ExperimentsRegistry()
+        self.col_exp = {}
+        self.col_exp_queues = defaultdict(asyncio.Queue)
         self._connected_envoys = {}
 
-    # TODO: Need to Implement start_experiment_execution_loop properly
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
-        # In a infinite loop wait for experiment from experiment registry
-        # Once the experiment received from registry
-        # call experiment.start function
-
-        # TODO: Implement this with Experiment registry context
 
         loop = asyncio.get_event_loop()
         while True:
@@ -61,19 +58,51 @@ class Director:
                         install_requirements=False,
                     )
                 )
+                # Adding the experiment to collaborators queues
+                for col_name in experiment.collaborators:
+                    queue = self.col_exp_queues[col_name]
+                    await queue.put(experiment.name)
                 await run_aggregator_future
 
-    # TODO: Need to Implement this
     async def wait_experiment(self, envoy_name: str) -> str:
-        """Wait an experiment."""
-        pass
+        """Wait an experiment.
+
+        Args:
+            envoy_name (str): The name of the envoy.
+
+        Returns:
+            str: The name of the experiment on the queue.
+        """
+        experiment_name = self.col_exp.get(envoy_name)
+        # If any envoy gets disconnected
+        if experiment_name and experiment_name in self.experiments_registry:
+            experiment = self.experiments_registry[experiment_name]
+            if experiment.aggregator.current_round < experiment.aggregator.rounds_to_train:
+                return experiment_name
+
+        self.col_exp[envoy_name] = None
+        queue = self.col_exp_queues[envoy_name]
+        experiment_name = await queue.get()
+        self.col_exp[envoy_name] = experiment_name
+
+        return experiment_name
 
     # TODO: Look what's use of sender and user in current implementation
     async def set_new_experiment(
-        self, experiment_name, collaborator_names, experiment_archive_path
-    ):
-        """
-        Save the archive at the current path
+        self,
+        experiment_name: str,
+        collaborator_names: Iterable[str],
+        experiment_archive_path: Path,
+    ) -> bool:
+        """Set new experiment.
+
+        Args:
+            experiment_name (str): String id for experiment.
+            collaborator_names (Iterable[str]): Names of collaborators.
+            experiment_archive_path (Path): Path of the experiment.
+
+        Returns:
+            bool : Boolean returned if the experiment register was successful.
         """
         experiment = Experiment(
             name=experiment_name,
@@ -85,10 +114,24 @@ class Director:
         self.experiments_registry.add(experiment)
         return True
 
+    def get_experiment_data(self, experiment_name: str) -> Path:
+        """Get experiment data.
+
+        Args:
+            experiment_name (str): String id for experiment.
+
+        Returns:
+            str: Path of archive.
+        """
+        return self.experiments_registry[experiment_name].archive_path
+
     # TODO: first cut version might need improvement
-    def acknowledge_envoys(self, envoy_name) -> bool:
+    def acknowledge_envoys(self, envoy_name: str) -> bool:
         """
         Save the envoys
+
+        Args:
+            envoy_name (str): Name of the envoy
         """
         self._connected_envoys[envoy_name] = {
             "is_online": True,
@@ -99,7 +142,5 @@ class Director:
 
     # TODO: Add docstring, first cut version might need improvement
     def get_envoys(self):
-        """
-        Returns list of connected envoys
-        """
+        """Returns list of connected envoys"""
         return list(self._connected_envoys.keys())

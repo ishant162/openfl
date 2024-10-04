@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, List, Union
+from typing import List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -88,29 +88,6 @@ class Experiment:
             self.status = Status.FAILED
             logger.exception("Experiment %s failed with error: %s.", self.name, e)
 
-    async def review_experiment(self, review_plan_callback: Callable) -> bool:
-        """Get plan approve in console."""
-        logger.debug("Experiment Review starts")
-        # Extract the workspace for review (without installing requirements)
-        with ExperimentWorkspace(
-            self.name,
-            self.archive_path,
-            is_install_requirements=False,
-            remove_archive=False,
-        ):
-            loop = asyncio.get_event_loop()
-            # Call for a review in a separate thread (server is not blocked)
-            review_approve = await loop.run_in_executor(
-                None, review_plan_callback, self.name, self.plan_path
-            )
-            if not review_approve:
-                self.status = Status.REJECTED
-                self.archive_path.unlink(missing_ok=True)
-                return False
-
-        logger.debug("Experiment Review succeeded")
-        return True
-
     def _create_aggregator_grpc_server(
         self,
         *,
@@ -143,16 +120,15 @@ class Experiment:
         grpc_server.start()
         logger.info("Starting Aggregator gRPC Server")
 
-        # try:
-        #     while not aggregator_grpc_server.aggregator.all_quit_jobs_sent():
-        #         # Awaiting quit job sent to collaborators
-        #         await asyncio.sleep(10)
-        #     logger.debug("Aggregator sent quit jobs calls to all collaborators")
-        # except KeyboardInterrupt:
-        #     pass
+        try:
+            while not aggregator_grpc_server.aggregator.all_quit_jobs_sent():
+                # Awaiting quit job sent to collaborators
+                await asyncio.sleep(10)
+            logger.debug("Aggregator sent quit jobs calls to all collaborators")
+        except KeyboardInterrupt:
+            pass
         # finally:
-        # pass
-        # grpc_server.stop(0)
+        #     grpc_server.stop(0)
 
 
 class ExperimentsRegistry:
