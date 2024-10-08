@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from openfl.experimental.runtime.runtime import Runtime
@@ -65,20 +66,26 @@ class FederatedRuntime(Runtime):
         if collaborators is not None:
             self.collaborators = collaborators
 
-        if director is not None:
+        self.notebook_path = notebook_path
+        self.tls = tls
+
+        if director:
             self.director = director
+            self._fill_certs(
+                self.director["cert_chain"],
+                self.director["api_private_key"],
+                self.director["api_cert"],
+            )
+
             self._dir_client = DirectorClient(
                 director_host=self.director["director_node_fqdn"],
                 director_port=self.director["director_port"],
                 tls=tls,
-                # validate all certificates files are present
-                # at given location
-                root_certificate=self.director["cert_chain"],
-                private_key=self.director["api_private_key"],
-                certificate=self.director["api_cert"],
+                root_certificate=self.root_certificate,
+                private_key=self.private_key,
+                certificate=self.certificate,
             )
 
-        self.notebook_path = notebook_path
         self.kwargs = kwargs
         self.logger = logging.getLogger(__name__)
 
@@ -117,6 +124,18 @@ class FederatedRuntime(Runtime):
                 collaborators to set.
         """
         self.__collaborators = collaborators
+
+    def _fill_certs(self, root_certificate, private_key, certificate):
+        """Fill certificates."""
+        if self.tls:
+            if not all([root_certificate, private_key, certificate]):
+                raise ValueError("No certificates provided")
+
+            self.root_certificate = Path(root_certificate).absolute()
+            self.private_key = Path(private_key).absolute()
+            self.certificate = Path(certificate).absolute()
+        else:
+            self.root_certificate = self.private_key = self.certificate = None
 
     def prepare_workspace_archive(self) -> None:
         """
