@@ -54,7 +54,6 @@ class Aggregator:
         log_metric_callback: Callable = None,
         **kwargs,
     ) -> None:
-
         self.logger = getLogger(__name__)
 
         self.single_col_cert_common_name = single_col_cert_common_name
@@ -275,7 +274,6 @@ class Aggregator:
             None
         """
         if self.checkpoint:
-
             # Check if arguments are pickled, if yes then unpickle
             if not isinstance(ctx, FLSpec):
                 ctx = pickle.loads(ctx)
