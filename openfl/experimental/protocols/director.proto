@@ -9,6 +9,7 @@ service Director {
     //Runtime RPCs
     rpc SetNewExperiment(stream ExperimentInfo) returns (SetNewExperimentResponse) {}
     rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
+    rpc GetFlowStatus(GetFlowStatusRequest) returns (GetFlowStatusResponse) {}
 }
 
 message SendConnectionRequest {
@@ -51,4 +52,10 @@ message GetEnvoysRequest {}
 
 message GetEnvoysResponse {
     repeated string columns = 1;
+}
+
+message GetFlowStatusRequest {}
+
+message GetFlowStatusResponse {
+    bool completed = 1;
 }

@@ -112,6 +112,7 @@ class FLSpec:
         elif str(self._runtime) == "FederatedRuntime":
             archive_path, exp_name = self.prepare_workspace_archive()
             self.submit_workspace(archive_path, exp_name)
+            self.flow_status()
         else:
             raise Exception("Runtime not implemented")
 
@@ -150,17 +151,27 @@ class FLSpec:
         """
         Submits workspace archive to the director using runtime
         """
-        self.runtime.submit_workspace(archive_path, exp_name)
+        response = self.runtime.submit_workspace(archive_path, exp_name)
+
+        if response.status:
+            print("Experiment was submitted to the director!")
+        else:
+            print("Experiment could not be submitted to the director.")
 
     def stream_metrics(self) -> None:
         # This has to work for agg based and director based workflow
         # prints metrics on the console.
         self.runtime.stream_metrics()
 
-    def experiment_status(self) -> int:
+    def flow_status(self) -> int:
         # Aggregator will report experiment status to Director,
         # which will send it here and from here to user.
-        return self.runtime.get_experiment_status()
+        status = self.runtime.get_flow_status()
+
+        if status:
+            print("Experiment ran successfully")
+        else:
+            print("Experiment could not run")
 
     def _capture_instance_snapshot(self, kwargs):
         """Takes backup of self before exclude or include filtering.

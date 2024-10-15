@@ -36,6 +36,7 @@ class Director:
         self.review_plan_callback = review_plan_callback
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
+        self._flow_status = False
 
         self.experiments_registry = ExperimentsRegistry()
         self.col_exp = {}
@@ -62,7 +63,18 @@ class Director:
                 for col_name in experiment.collaborators:
                     queue = self.col_exp_queues[col_name]
                     await queue.put(experiment.name)
-                await run_aggregator_future
+                # Wait for the experiment to complete and save the result
+                self._flow_status = await run_aggregator_future
+
+    async def get_flow_status(self) -> bool:
+        """Wait until the experiment is finished and return True."""
+        while not self._flow_status:
+            await asyncio.sleep(10)
+
+        # Reset flow status
+        self._flow_status = False
+        # Return True when the status is FINISHED
+        return True
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Wait an experiment.

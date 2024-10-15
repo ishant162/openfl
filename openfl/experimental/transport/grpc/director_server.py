@@ -180,3 +180,13 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         envoy_list.columns.extend(envoys)
 
         return envoy_list
+
+    async def GetFlowStatus(self, request, context):
+        """Gets Flow status
+
+        Returns:
+            status = flow status
+        """
+
+        status = await self.director.get_flow_status()
+        return director_pb2.GetFlowStatusResponse(completed=status)

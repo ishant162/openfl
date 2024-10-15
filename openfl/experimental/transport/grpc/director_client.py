@@ -162,3 +162,14 @@ class DirectorClient:
         """
         envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
         return envoys.columns
+
+    def get_flow_status(self):
+        """
+        Gets status of the flow
+
+        Returns:
+            status = flow status
+        """
+        response = self.stub.GetFlowStatus(director_pb2.GetFlowStatusRequest())
+
+        return response.completed

@@ -171,10 +171,7 @@ class FederatedRuntime(Runtime):
         finally:
             self.remove_workspace_archive(archive_path)
 
-        if response.status:
-            self.logger.info("Experiment was submitted to the director!")
-        else:
-            self.logger.info("Experiment could not be submitted to the director.")
+        return response
 
     def stream_metrics(self) -> Dict[str, Union[str, float]]:
         # Use _dir_client object to get metrics and report to user
@@ -184,10 +181,9 @@ class FederatedRuntime(Runtime):
         # Use _dir_client to remove experiment data including checkpoints
         pass
 
-    def get_experiment_status(self) -> int:
-        # Use _dir_client to comminicate to director to get experiment status
-        # Return int as defined in ExperimentStatus
-        return ExperimentStatus.SUBMITTED
+    def get_flow_status(self) -> int:
+
+        return self._dir_client.get_flow_status()
 
     def get_envoys(self):
         """Gets Envoys

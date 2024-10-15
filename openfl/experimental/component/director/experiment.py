@@ -88,6 +88,8 @@ class Experiment:
             self.status = Status.FAILED
             logger.exception("Experiment %s failed with error: %s.", self.name, e)
 
+        return self.status == Status.FINISHED
+
     def _create_aggregator_grpc_server(
         self,
         *,
