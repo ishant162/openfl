@@ -260,8 +260,8 @@ class WorkspaceExport:
         instance.generate_plan_yaml()
 
         if federated_runtime:
-            arch_path, flow_class_name = instance.generate_experiment_archive()
-            return arch_path, flow_class_name
+            gen_workspace_path, arch_path, flow_class_name = instance.generate_experiment_archive()
+            return gen_workspace_path, arch_path, flow_class_name
         instance.generate_data_yaml()
 
     def generate_experiment_archive(self):
@@ -279,7 +279,7 @@ class WorkspaceExport:
 
         print(f"Archive created at {archive_path}.zip")
 
-        return arch_path, self.flow_class_name
+        return self.output_workspace_path, arch_path, self.flow_class_name
 
     # Have to do generate_requirements before anything else
     # because these !pip commands needs to be removed from python script

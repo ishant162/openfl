@@ -172,4 +172,4 @@ class DirectorClient:
         """
         response = self.stub.GetFlowStatus(director_pb2.GetFlowStatusRequest())
 
-        return response.completed
+        return response.completed, response.flspec_obj

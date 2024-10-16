@@ -76,19 +76,20 @@ class Experiment:
                     director_config=director_config,
                 )
                 self.aggregator = aggregator_grpc_server.aggregator
-                await asyncio.gather(
+                results = await asyncio.gather(
                     self._run_aggregator_grpc_server(
                         aggregator_grpc_server=aggregator_grpc_server,
                     ),
                     self.aggregator.run_experiment(),
                 )
+            self.updated_flow = results[1]
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
             self.status = Status.FAILED
             logger.exception("Experiment %s failed with error: %s.", self.name, e)
 
-        return self.status == Status.FINISHED
+        return [self.status == Status.FINISHED, self.updated_flow]
 
     def _create_aggregator_grpc_server(
         self,

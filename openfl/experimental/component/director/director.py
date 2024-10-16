@@ -4,6 +4,7 @@
 
 """Director module."""
 import asyncio
+import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -36,7 +37,7 @@ class Director:
         self.review_plan_callback = review_plan_callback
         self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
-        self._flow_status = False
+        self._flow_status = []
 
         self.experiments_registry = ExperimentsRegistry()
         self.col_exp = {}
@@ -72,9 +73,10 @@ class Director:
             await asyncio.sleep(10)
 
         # Reset flow status
-        self._flow_status = False
-        # Return True when the status is FINISHED
-        return True
+        status, flspec_obj = self._flow_status
+        self._flow_status = []
+        # Return flow_status when the status is FINISHED
+        return status, pickle.dumps(flspec_obj)
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Wait an experiment.

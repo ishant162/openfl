@@ -112,7 +112,7 @@ class FLSpec:
         elif str(self._runtime) == "FederatedRuntime":
             archive_path, exp_name = self.prepare_workspace_archive()
             self.submit_workspace(archive_path, exp_name)
-            self.flow_status()
+            return self.flow_status()
         else:
             raise Exception("Runtime not implemented")
 
@@ -166,12 +166,14 @@ class FLSpec:
     def flow_status(self) -> int:
         # Aggregator will report experiment status to Director,
         # which will send it here and from here to user.
-        status = self.runtime.get_flow_status()
+        status, flspec_obj = self.runtime.get_flow_status()
 
         if status:
             print("Experiment ran successfully")
         else:
             print("Experiment could not run")
+
+        return flspec_obj
 
     def _capture_instance_snapshot(self, kwargs):
         """Takes backup of self before exclude or include filtering.

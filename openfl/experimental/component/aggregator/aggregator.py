@@ -204,6 +204,8 @@ class Aggregator:
                 self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
                 delattr(self, "instance_snapshot")
 
+        return self.flow
+
     def run_flow(self) -> None:
         """Start the execution and run flow until transition."""
         # Start function will be the first step if any flow

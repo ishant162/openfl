@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import os
+import pickle
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -87,6 +89,7 @@ class FederatedRuntime(Runtime):
             )
 
         self.kwargs = kwargs
+        self.generated_workspace_path = None
         self.logger = logging.getLogger(__name__)
 
     @property
@@ -146,7 +149,7 @@ class FederatedRuntime(Runtime):
         """
         from openfl.experimental.workspace_export import WorkspaceExport
 
-        archive_path, exp_name = WorkspaceExport.export(
+        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
             notebook_path=self.notebook_path,
             output_workspace="./generated_workspace",
             federated_runtime=True,
@@ -183,7 +186,9 @@ class FederatedRuntime(Runtime):
 
     def get_flow_status(self) -> int:
 
-        return self._dir_client.get_flow_status()
+        status, flspec_obj = self._dir_client.get_flow_status()
+        sys.path.append(str(self.generated_workspace_path))
+        return status, pickle.loads(flspec_obj)
 
     def get_envoys(self):
         """Gets Envoys

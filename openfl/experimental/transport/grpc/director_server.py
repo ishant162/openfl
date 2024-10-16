@@ -187,6 +187,5 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         Returns:
             status = flow status
         """
-
-        status = await self.director.get_flow_status()
-        return director_pb2.GetFlowStatusResponse(completed=status)
+        status, flspec_obj = await self.director.get_flow_status()
+        return director_pb2.GetFlowStatusResponse(completed=status, flspec_obj=flspec_obj)
