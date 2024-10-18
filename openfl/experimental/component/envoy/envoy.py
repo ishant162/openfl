@@ -1,8 +1,10 @@
+# Copyright 2020-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 import sys
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional, Union
 
@@ -49,11 +51,7 @@ class Envoy:
             certificate=certificate,
         )
         self.logger = logging.getLogger(__name__)
-
-        self.executor = ThreadPoolExecutor()
-        self.running_experiments = {}
         self.is_experiment_running = False
-        self._health_check_future = None
 
     def run(self):
         """Run of the envoy working cycle."""
@@ -101,8 +99,7 @@ class Envoy:
                     raise Exception("Broken archive")
         return data_file_path
 
-    # TODO: Think on how to implement this.
-    #      What might be the health check about?
+    # TODO: Implement
     def send_health_check(self):
         """Send health check to the director."""
         pass

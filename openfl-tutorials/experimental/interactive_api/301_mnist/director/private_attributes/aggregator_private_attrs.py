@@ -167,5 +167,3 @@ def aggregator_private_attrs(watermark_data, batch_size):
         # "watermark_acc_threshold": 0.98,
         # "watermark_pretraining_completed": False,
     }
-
-

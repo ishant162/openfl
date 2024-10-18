@@ -62,7 +62,6 @@ class Experiment:
         try:
             logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
 
-            # TODO: To be implemented with ExperimentWorkspace context
             with ExperimentWorkspace(
                 experiment_name=self.name,
                 data_file_path=self.archive_path,
@@ -87,7 +86,7 @@ class Experiment:
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
             self.status = Status.FAILED
-            logger.exception("Experiment %s failed with error: %s.", self.name, e)
+            raise Exception("Experiment %s failed with error: %s.", self.name, e)
 
         return [self.status == Status.FINISHED, self.updated_flow]
 
@@ -130,8 +129,8 @@ class Experiment:
             logger.debug("Aggregator sent quit jobs calls to all collaborators")
         except KeyboardInterrupt:
             pass
-        # finally:
-        #     grpc_server.stop(0)
+        finally:
+            grpc_server.stop(0)
 
 
 class ExperimentsRegistry:

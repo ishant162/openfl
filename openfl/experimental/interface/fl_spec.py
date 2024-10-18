@@ -110,9 +110,13 @@ class FLSpec:
             for name, attr in final_attributes:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
-            archive_path, exp_name = self.prepare_workspace_archive()
-            self.submit_workspace(archive_path, exp_name)
-            return self.flow_status()
+            try:
+                archive_path, exp_name = self.runtime.prepare_workspace_archive()
+                self.submit_workspace(archive_path, exp_name)
+                flspec_obj = self.flow_status()
+            except Exception as e:
+                raise Exception(f"Failed to run experiment:{e}")
+            return flspec_obj
         else:
             raise Exception("Runtime not implemented")
 
@@ -139,17 +143,13 @@ class FLSpec:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
         self._runtime = runtime
 
-    # TODO: Update Docstring
-    def prepare_workspace_archive(self) -> None:
+    def submit_workspace(self, archive_path: str, exp_name: str) -> None:
         """
-        Prepares workspace archive using runtime
-        """
-        return self.runtime.prepare_workspace_archive()
+        Submits workspace archive to the director using runtime.
 
-    # TODO: Update Docstring
-    def submit_workspace(self, archive_path, exp_name):
-        """
-        Submits workspace archive to the director using runtime
+        Args:
+            archive_path (str): Archive file path containing the workspace.
+            exp_name (str): The name of the experiment to be submitted.
         """
         response = self.runtime.submit_workspace(archive_path, exp_name)
 
@@ -158,22 +158,24 @@ class FLSpec:
         else:
             print("Experiment could not be submitted to the director.")
 
-    def stream_metrics(self) -> None:
-        # This has to work for agg based and director based workflow
-        # prints metrics on the console.
-        self.runtime.stream_metrics()
+    def flow_status(self) -> FLSpec:
+        """
+        Get updated flow status.
 
-    def flow_status(self) -> int:
-        # Aggregator will report experiment status to Director,
-        # which will send it here and from here to user.
-        status, flspec_obj = self.runtime.get_flow_status()
-
-        if status:
-            print("Experiment ran successfully")
-        else:
-            print("Experiment could not run")
-
-        return flspec_obj
+        Returns:
+            flspec_obj: An updated FLSpec instance if the experiment runs successfully.
+                        None if the experiment could not run.
+        """
+        try:
+            status, flspec_obj = self.runtime.get_flow_status()
+            if status:
+                print("Experiment ran successfully")
+                return flspec_obj
+            else:
+                print("Experiment could not run")
+                return None  # Return None if the experiment fails
+        except Exception as e:
+            raise Exception(f"An error occurred while getting flow status: {e}")
 
     def _capture_instance_snapshot(self, kwargs):
         """Takes backup of self before exclude or include filtering.

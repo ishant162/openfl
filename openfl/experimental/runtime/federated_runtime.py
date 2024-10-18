@@ -20,14 +20,7 @@ if TYPE_CHECKING:
     from openfl.experimental.interface import Aggregator
     from openfl.experimental.interface import Collaborator
 
-from typing import Dict, List, Type, Union
-
-
-class ExperimentStatus:
-    SUBMITTED = 0
-    RUNNING = 1
-    ERROR = 2
-    FINISHED = 3
+from typing import Any, Dict, List, Tuple, Type
 
 
 # TODO: Update Docstring and Arguments description
@@ -140,55 +133,76 @@ class FederatedRuntime(Runtime):
         else:
             self.root_certificate = self.private_key = self.certificate = None
 
-    def prepare_workspace_archive(self) -> None:
+    def prepare_workspace_archive(self) -> Tuple[Path, str]:
         """
-        Prepare workspace archive using WorkspaceExport
+        Prepare workspace archive using WorkspaceExport.
 
         Returns:
-            archive_path: Path of the archive created.
+            Tuple[Path, str]: A tuple containing the path of the created
+        archive and the experiment name.
         """
         from openfl.experimental.workspace_export import WorkspaceExport
 
-        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
-            notebook_path=self.notebook_path,
-            output_workspace="./generated_workspace",
-            federated_runtime=True,
-        )
+        try:
+            self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
+                notebook_path=self.notebook_path,
+                output_workspace="./generated_workspace",
+                federated_runtime=True,
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to export workspace: {e}")
+            raise
 
         return archive_path, exp_name
 
     def remove_workspace_archive(self, archive_path) -> None:
         """
         Removes workspace archive
+
+        Args:
+            archive_path (str): Archive file path containing the workspace.
         """
         os.remove(archive_path)
 
     def submit_workspace(self, archive_path, exp_name) -> int:
         """
         Submits workspace archive to the director
+
+        Args:
+            archive_path (str): Archive file path containing the workspace.
+            exp_name (str): The name of the experiment to be submitted.
+
+        Returns:
+            response: The response object from the director containing status.
         """
         try:
             response = self._dir_client.set_new_experiment(
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.get_envoys()
             )
+        except Exception as e:
+            raise Exception(f"An error occurred during submission: {e}")
         finally:
             self.remove_workspace_archive(archive_path)
 
         return response
 
-    def stream_metrics(self) -> Dict[str, Union[str, float]]:
-        # Use _dir_client object to get metrics and report to user
-        pass
+    def get_flow_status(self) -> Tuple[bool, Any]:
+        """
+        Retrieve the current flow status and deserialized flow object.
 
-    def remove_experiment_data(self, flow_id: int) -> None:
-        # Use _dir_client to remove experiment data including checkpoints
-        pass
-
-    def get_flow_status(self) -> int:
-
+        Returns:
+            status (bool): The flow status.
+            flow_object: The deserialized flow object.
+        """
         status, flspec_obj = self._dir_client.get_flow_status()
-        sys.path.append(str(self.generated_workspace_path))
-        return status, pickle.loads(flspec_obj)
+
+        try:
+            sys.path.append(str(self.generated_workspace_path))
+            flow_object = pickle.loads(flspec_obj)
+        except Exception as e:
+            raise Exception(f"Failed to deserialize flow object: {e}")
+
+        return status, flow_object
 
     def get_envoys(self):
         """Gets Envoys

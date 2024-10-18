@@ -163,7 +163,6 @@ class Aggregator:
 
             if self.time_to_quit:
                 self.logger.info("Experiment Completed.")
-                self.quit_job_sent_to = self.authorized_cols
                 break
 
             # Prepare queue for collaborator task, with clones
@@ -317,6 +316,7 @@ class Aggregator:
                 self.logger.info(
                     f"Sending signal to collaborator {collaborator_name} to shutdown..."
                 )
+                self.quit_job_sent_to.append(collaborator_name)
                 # FIXME: 0, and "" instead of None is just for protobuf compatibility.
                 #  Cleaner solution?
                 return (

@@ -8,7 +8,7 @@ import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 
@@ -46,29 +46,36 @@ class Director:
 
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
-
         loop = asyncio.get_event_loop()
         while True:
-            async with self.experiments_registry.get_next_experiment() as experiment:
-                run_aggregator_future = loop.create_task(
-                    experiment.start(
-                        root_certificate=self.root_certificate,
-                        certificate=self.certificate,
-                        private_key=self.private_key,
-                        tls=self.tls,
-                        director_config=self.director_config,
-                        install_requirements=False,
+            try:
+                async with self.experiments_registry.get_next_experiment() as experiment:
+                    run_aggregator_future = loop.create_task(
+                        experiment.start(
+                            root_certificate=self.root_certificate,
+                            certificate=self.certificate,
+                            private_key=self.private_key,
+                            tls=self.tls,
+                            director_config=self.director_config,
+                            install_requirements=False,
+                        )
                     )
-                )
-                # Adding the experiment to collaborators queues
-                for col_name in experiment.collaborators:
-                    queue = self.col_exp_queues[col_name]
-                    await queue.put(experiment.name)
-                # Wait for the experiment to complete and save the result
-                self._flow_status = await run_aggregator_future
+                    # Adding the experiment to collaborators queues
+                    for col_name in experiment.collaborators:
+                        queue = self.col_exp_queues[col_name]
+                        await queue.put(experiment.name)
+                    # Wait for the experiment to complete and save the result
+                    self._flow_status = await run_aggregator_future
+            except Exception as e:
+                raise Exception(f"Error while executing experiment: {e}")
 
-    async def get_flow_status(self) -> bool:
-        """Wait until the experiment is finished and return True."""
+    async def get_flow_status(self) -> Tuple[bool, bytes]:
+        """Wait until the experiment is finished and return True.
+
+        Returns:
+            status (bool): The flow status.
+            flspec_obj (bytes): A serialized FLSpec object (in bytes) using pickle.
+        """
         while not self._flow_status:
             await asyncio.sleep(10)
 
@@ -137,7 +144,13 @@ class Director:
         Returns:
             str: Path of archive.
         """
-        return self.experiments_registry[experiment_name].archive_path
+        try:
+            if experiment_name not in self.experiments_registry:
+                raise KeyError(f"Experiment {experiment_name} not found in registry")
+            return self.experiments_registry[experiment_name].archive_path
+        except Exception as e:
+            print(f"Error retrieving experiment data: {e}")
+            return None
 
     # TODO: first cut version might need improvement
     def acknowledge_envoys(self, envoy_name: str) -> bool:
