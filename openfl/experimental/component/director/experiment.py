@@ -54,7 +54,7 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        director_config: dict = None,
+        director_config: Path = None,
         install_requirements: bool = False,
     ):
         """Run experiment."""
@@ -97,7 +97,7 @@ class Experiment:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        director_config: dict = None,
+        director_config: Path = None,
     ) -> AggregatorGRPCServer:
         plan = Plan.parse(plan_config_path=self.plan_path)
         plan.authorized_cols = list(self.collaborators)

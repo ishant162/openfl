@@ -23,22 +23,15 @@ if TYPE_CHECKING:
 from typing import Any, Dict, List, Tuple, Type
 
 
-# TODO: Update Docstring and Arguments description
 class FederatedRuntime(Runtime):
-    """Class for a federated runtime, derived from the Runtime class.
-
-    Attributes:
-        aggregator (Type[Aggregator]): The aggregator participant.
-        collaborators (List[Type[Collaborator]]): The list of collaborator
-            participants.
-    """
+    """Class for a federated runtime, derived from the Runtime class."""
 
     def __init__(
         self,
         aggregator: str = None,
         collaborators: List[str] = None,
         director: Dict = None,
-        notebook_path: str = None,
+        notebook_path=None,
         tls: bool = False,
         **kwargs,
     ) -> None:
@@ -52,6 +45,8 @@ class FederatedRuntime(Runtime):
             collaborators (List[str], optional): List of collaborator names.
                 Defaults to None.
             director (Dict): Director information. Defaults to None
+            notebook_path (str): Jupyter notebook path
+            tls (bool): Whether to use TLS for the connection.
             **kwargs: Additional keyword arguments.
         """
         super().__init__()

@@ -1,8 +1,11 @@
+# Copyright 2020-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 from grpc import aio, ssl_server_credentials
 
@@ -22,13 +25,34 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
-        review_plan_callback: Union[None, Callable] = None,
         listen_host: str = "[::]",
         listen_port: int = 50051,
-        envoy_health_check_period: int = 0,
-        director_config=None,
+        director_config: Path = None,
         **kwargs,
     ) -> None:
+        """
+        Initialize a DirectorGRPCServer object.
+
+        Args:
+            director_cls (Type[Director]): The class of the director.
+            tls (bool, optional): Whether to use TLS for the connection.
+                Defaults to True.
+            root_certificate (Optional[Union[Path, str]], optional): The path
+                to the root certificate for the TLS connection. Defaults to
+                None.
+            private_key (Optional[Union[Path, str]], optional): The path to
+                the server's private key for the TLS connection. Defaults to
+                None.
+            certificate (Optional[Union[Path, str]], optional): The path to
+                the server's certificate for the TLS connection. Defaults to
+                None.
+            listen_host (str, optional): The host to listen on. Defaults to
+                '[::]'.
+            listen_port (int, optional): The port to listen on. Defaults to
+                50051.
+            director_config (Path): Path to director_config file
+            **kwargs: Additional keyword arguments.
+        """
         super().__init__()
         self.listen_uri = f"{listen_host}:{listen_port}"
         self.tls = tls
@@ -43,8 +67,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
-            review_plan_callback=review_plan_callback,
-            envoy_health_check_period=envoy_health_check_period,
             director_config=director_config,
             **kwargs,
         )

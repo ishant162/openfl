@@ -24,7 +24,7 @@ class Envoy:
         envoy_name: str,
         director_host: str,
         director_port: int,
-        envoy_config: dict = None,
+        envoy_config: Path = None,
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,

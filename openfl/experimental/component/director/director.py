@@ -8,7 +8,7 @@ import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Iterable, Tuple, Union
+from typing import Iterable, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 
@@ -23,19 +23,29 @@ class Director:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
-        director_config: dict = None,
-        review_plan_callback: Union[None, Callable] = None,
-        envoy_health_check_period: int = 60,
+        director_config: Path = None,
         install_requirements: bool = False,
     ) -> None:
-        """Initialize a director object."""
+        """Initialize a Director object.
+
+        Args:
+            tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+            root_certificate (Union[Path, str], optional): The path to the
+                root certificate for TLS. Defaults to None.
+            private_key (Union[Path, str], optional): The path to the private
+                key for TLS. Defaults to None.
+            certificate (Union[Path, str], optional): The path to the
+                certificate for TLS. Defaults to None.
+            director_config (Path): Path to director_config file
+            install_requirements (bool, optional): A flag indicating if the
+                requirements should be installed. Defaults to False.
+        """
         self.tls = tls
         self.root_certificate = root_certificate
         self.private_key = private_key
         self.certificate = certificate
         self.director_config = director_config
-        self.review_plan_callback = review_plan_callback
-        self.envoy_health_check_period = envoy_health_check_period
         self.install_requirements = install_requirements
         self._flow_status = []
 
@@ -108,7 +118,6 @@ class Director:
 
         return experiment_name
 
-    # TODO: Look what's use of sender and user in current implementation
     async def set_new_experiment(
         self,
         experiment_name: str,
@@ -152,7 +161,6 @@ class Director:
             print(f"Error retrieving experiment data: {e}")
             return None
 
-    # TODO: first cut version might need improvement
     def acknowledge_envoys(self, envoy_name: str) -> bool:
         """
         Save the envoys
@@ -167,7 +175,11 @@ class Director:
         }
         return True
 
-    # TODO: Add docstring, first cut version might need improvement
     def get_envoys(self):
-        """Returns list of connected envoys"""
-        return list(self._connected_envoys.keys())
+        """Gets list of connected envoys
+
+        Returns:
+            envoys: list of connected envoys
+        """
+        envoys = list(self._connected_envoys.keys())
+        return envoys

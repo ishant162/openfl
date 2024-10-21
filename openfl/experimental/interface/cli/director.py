@@ -13,7 +13,6 @@ from click import group, option, pass_context
 from dynaconf import Validator
 
 from openfl.experimental.interface.cli.cli_helper import WORKSPACE
-from openfl.interface.cli import review_plan_callback
 from openfl.utilities import merge_configs
 from openfl.utilities.path_check import is_directory_traversal
 
@@ -74,7 +73,6 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
     from openfl.experimental.component.director import Director
     from openfl.experimental.transport import DirectorGRPCServer
 
-    # TODO: Revisit (Private attributes callable: director_config path is provided)
     director_config_path = Path(director_config_path).absolute()
     logger.info("🧿 Starting the Director Service.")
     if is_directory_traversal(director_config_path):
@@ -110,12 +108,6 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
     if config.certificate:
         config.certificate = Path(config.certificate).absolute()
 
-    # We pass the `review_experiment` callback only if it is needed.
-    # Otherwise we pass None.
-    overwritten_review_plan_callback = None
-    if config.settings.review_experiment:
-        overwritten_review_plan_callback = review_plan_callback
-
     director_server = DirectorGRPCServer(
         director_cls=Director,
         tls=tls,
@@ -124,8 +116,6 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
         certificate=config.certificate,
         listen_host=config.settings.listen_host,
         listen_port=config.settings.listen_port,
-        review_plan_callback=overwritten_review_plan_callback,
-        envoy_health_check_period=config.settings.envoy_health_check_period,
         install_requirements=config.settings.install_requirements,
         director_config=director_config_path,
     )

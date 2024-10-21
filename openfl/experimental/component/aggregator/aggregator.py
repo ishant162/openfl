@@ -472,6 +472,8 @@ class Aggregator:
         # Update the clone in clones_dict dictionary
         self.clones_dict[clone.input] = clone
         self.next_step = next_step[0]
+        self.flow._foreach_methods = list(set(clone._foreach_methods))
+        self.flow.execute_task_args = clone.execute_task_args
 
         self.collaborators_counter += 1
         # If selected collaborator have sent the results
