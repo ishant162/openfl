@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Union
+from typing import Iterable, List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -36,13 +36,17 @@ class Experiment:
         name: str,
         archive_path: Union[Path, str],
         collaborators: List[str],
+        sender: str,
         plan_path: Union[Path, str] = "plan/plan.yaml",
+        users: Iterable[str] = None,
     ) -> None:
         """Initialize an experiment object."""
         self.name = name
         self.archive_path = Path(archive_path).absolute()
         self.collaborators = collaborators
+        self.sender = sender
         self.plan_path = Path(plan_path)
+        self.users = set() if users is None else set(users)
         self.status = Status.PENDING
         self.aggregator = None
         self.run_aggregator_atask = None

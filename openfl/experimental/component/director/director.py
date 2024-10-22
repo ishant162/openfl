@@ -121,6 +121,7 @@ class Director:
     async def set_new_experiment(
         self,
         experiment_name: str,
+        sender_name: str,
         collaborator_names: Iterable[str],
         experiment_archive_path: Path,
     ) -> bool:
@@ -128,6 +129,7 @@ class Director:
 
         Args:
             experiment_name (str): String id for experiment.
+            sender_name (str): The name of the sender.
             collaborator_names (Iterable[str]): Names of collaborators.
             experiment_archive_path (Path): Path of the experiment.
 
@@ -138,6 +140,8 @@ class Director:
             name=experiment_name,
             archive_path=experiment_archive_path,
             collaborators=collaborator_names,
+            users=[sender_name],
+            sender=sender_name,
             plan_path="plan/plan.yaml",
         )
 

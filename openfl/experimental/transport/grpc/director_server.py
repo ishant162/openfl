@@ -10,8 +10,11 @@ from typing import Optional, Union
 from grpc import aio, ssl_server_credentials
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
+from openfl.protocols.utils import get_headers
 
 from .grpc_channel_options import channel_options
+
+CLIENT_ID_DEFAULT = "__default__"
 
 
 class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
@@ -110,6 +113,24 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         await self.server.start()
         await self.server.wait_for_termination()
 
+    def get_caller(self, context):
+        """Get caller name from context.
+
+        if tls == True: get caller name from auth_context
+        if tls == False: get caller name from context header 'client_id'
+
+        Args:
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            str: The name of the caller.
+        """
+        if self.tls:
+            return context.auth_context()["x509_common_name"][0].decode("utf-8")
+        headers = get_headers(context)
+        client_id = headers.get("client_id", CLIENT_ID_DEFAULT)
+        return client_id
+
     def ConnectEnvoy(self, request, context):
         self.logger.info(f"Envoy {request.envoy_name} is attempting to connect")
         is_accepted = self.director.acknowledge_envoys(request.envoy_name)
@@ -182,8 +203,11 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                 else:
                     raise Exception("Could not register new experiment")
 
+        caller = self.get_caller(context)
+
         is_accepted = await self.director.set_new_experiment(
             experiment_name=request.name,
+            sender_name=caller,
             collaborator_names=request.collaborator_names,
             experiment_archive_path=data_file_path,
         )
