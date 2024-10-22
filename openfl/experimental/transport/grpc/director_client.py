@@ -1,8 +1,12 @@
+# Copyright 2020-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 
 import grpc
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
+from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 
 from .grpc_channel_options import channel_options
 
@@ -173,3 +177,46 @@ class DirectorClient:
         response = self.stub.GetFlowStatus(director_pb2.GetFlowStatusRequest())
 
         return response.completed, response.flspec_obj
+
+    def send_health_check(
+        self,
+        *,
+        envoy_name: str,
+        is_experiment_running: bool,
+    ) -> int:
+        """Send envoy health check.
+
+        Args:
+            envoy_name (str): The name of the envoy.
+            is_experiment_running (bool): Whether an experiment is currently
+                running.
+
+        Returns:
+            health_check_period (int): The period for health checks.
+        """
+        status = director_pb2.UpdateEnvoyStatusRequest(
+            name=envoy_name,
+            is_experiment_running=is_experiment_running,
+        )
+
+        self.logger.debug("Sending health check status: %s", status)
+        try:
+            response = self.stub.UpdateEnvoyStatus(status)
+        except grpc.RpcError as rpc_error:
+            self.logger.error(rpc_error)
+            if rpc_error.code() == grpc.StatusCode.NOT_FOUND:
+                raise EnvoyNotFoundError
+        else:
+            health_check_period = response.health_check_period.seconds
+
+            return health_check_period
+
+    def connect_runtime(self):
+        """Connect runtime to the director
+
+        Returns:
+            accepted (bool): True or False
+        """
+        response = self.stub.ConnectRuntime(director_pb2.SendRuntimeRequest())
+
+        return response.accepted

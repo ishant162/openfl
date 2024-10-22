@@ -7,9 +7,11 @@ import uuid
 from pathlib import Path
 from typing import Optional, Union
 
+import grpc
 from grpc import aio, ssl_server_credentials
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
+from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 from openfl.protocols.utils import get_headers
 
 from .grpc_channel_options import channel_options
@@ -30,6 +32,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         certificate: Optional[Union[Path, str]] = None,
         listen_host: str = "[::]",
         listen_port: int = 50051,
+        envoy_health_check_period: int = 0,
         director_config: Path = None,
         **kwargs,
     ) -> None:
@@ -70,6 +73,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
+            envoy_health_check_period=envoy_health_check_period,
             director_config=director_config,
             **kwargs,
         )
@@ -235,3 +239,44 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         """
         status, flspec_obj = await self.director.get_flow_status()
         return director_pb2.GetFlowStatusResponse(completed=status, flspec_obj=flspec_obj)
+
+    async def UpdateEnvoyStatus(self, request, context):
+        """
+        Accept health check from envoy.
+
+        Args:
+            request (director_pb2.UpdateEnvoyStatusRequest): The request from
+                the envoy.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            resp (director_pb2.UpdateEnvoyStatusResponse): The response to the
+                request.
+        """
+        self.logger.debug("Updating envoy status: %s", request)
+        try:
+            health_check_period = self.director.update_envoy_status(
+                envoy_name=request.name,
+                is_experiment_running=request.is_experiment_running,
+            )
+        except EnvoyNotFoundError as exc:
+            self.logger.error(exc)
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        else:
+            resp = director_pb2.UpdateEnvoyStatusResponse()
+            resp.health_check_period.seconds = health_check_period
+
+            return resp
+
+    def ConnectRuntime(self, request, context):
+        """Connect runtime to the director
+
+        Returns:
+            accepted (bool): True or False
+        """
+        self.logger.info("Runtime is attempting to connect")
+        is_accepted = True
+        if is_accepted:
+            self.logger.info("Runtime is connected")
+
+        return director_pb2.RuntimeRequestResponse(accepted=is_accepted)

@@ -4,6 +4,7 @@
 
 """Director module."""
 import asyncio
+import logging
 import pickle
 import time
 from collections import defaultdict
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Iterable, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
+from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 
 
 class Director:
@@ -24,6 +26,7 @@ class Director:
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
         director_config: Path = None,
+        envoy_health_check_period: int = 60,
         install_requirements: bool = False,
     ) -> None:
         """Initialize a Director object.
@@ -52,7 +55,9 @@ class Director:
         self.experiments_registry = ExperimentsRegistry()
         self.col_exp = {}
         self.col_exp_queues = defaultdict(asyncio.Queue)
-        self._connected_envoys = {}
+        self._envoy_registry = {}
+        self.envoy_health_check_period = envoy_health_check_period
+        self.logger = logging.getLogger(__name__)
 
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
@@ -172,10 +177,11 @@ class Director:
         Args:
             envoy_name (str): Name of the envoy
         """
-        self._connected_envoys[envoy_name] = {
+        self._envoy_registry[envoy_name] = {
             "is_online": True,
             "is_experiment_running": False,
             "last_updated": time.time(),
+            "valid_duration": 2 * self.envoy_health_check_period,
         }
         return True
 
@@ -185,5 +191,35 @@ class Director:
         Returns:
             envoys: list of connected envoys
         """
-        envoys = list(self._connected_envoys.keys())
+        envoys = list(self._envoy_registry.keys())
         return envoys
+
+    def update_envoy_status(
+        self,
+        *,
+        envoy_name: str,
+        is_experiment_running: bool,
+    ) -> int:
+        """Accept health check from envoy.
+
+        Args:
+            envoy_name (str): String id for envoy.
+            is_experiment_running (bool): Boolean value for the status of the
+                experiment.
+
+        Raises:
+            EnvoyNotFoundError: When Unknown shard {envoy_name}.
+
+        Returns:
+            int: Value of the envoy_health_check_period.
+        """
+        shard_info = self._envoy_registry.get(envoy_name)
+        if not shard_info:
+            raise EnvoyNotFoundError(f"Unknown shard {envoy_name}")
+
+        shard_info["is_online"]: True
+        shard_info["is_experiment_running"] = is_experiment_running
+        shard_info["valid_duration"] = 2 * self.envoy_health_check_period
+        shard_info["last_updated"] = time.time()
+
+        return self.envoy_health_check_period

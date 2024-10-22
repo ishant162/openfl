@@ -5,11 +5,13 @@ import logging
 import sys
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport.grpc.director_client import DirectorClient
+from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 from openfl.utilities.workspace import ExperimentWorkspace
 
 DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
@@ -52,6 +54,7 @@ class Envoy:
         )
         self.logger = logging.getLogger(__name__)
         self.is_experiment_running = False
+        self.executor = ThreadPoolExecutor()
 
     def run(self):
         """Run of the envoy working cycle."""
@@ -99,10 +102,22 @@ class Envoy:
                     raise Exception("Broken archive")
         return data_file_path
 
-    # TODO: Implement
     def send_health_check(self):
         """Send health check to the director."""
-        pass
+        self.logger.debug("Sending envoy node status to director.")
+        timeout = DEFAULT_RETRY_TIMEOUT_IN_SECONDS
+        while True:
+            try:
+                timeout = self.director_client.send_health_check(
+                    envoy_name=self.name,
+                    is_experiment_running=self.is_experiment_running,
+                )
+            except EnvoyNotFoundError:
+                self.logger.info(
+                    "The director has lost information about current shard. Resending..."
+                )
+                self.director_client.connect_envoy(envoy_name=self.name)
+            time.sleep(timeout)
 
     def _run_collaborator(self, plan="plan/plan.yaml"):
         """
@@ -137,6 +152,7 @@ class Envoy:
         else:
             if is_accepted:
                 self.logger.info(f"{self.name} was connected to the director")
+                self._health_check_future = self.executor.submit(self.send_health_check)
                 self.run()
             else:
                 # Connection failed

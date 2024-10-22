@@ -1,15 +1,22 @@
+// Copyright 2020-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 syntax = "proto3";
+
+import "google/protobuf/duration.proto";
 
 service Director {
     //Envoy RPCs
     rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
     rpc GetExperimentData(GetExperimentDataRequest) returns (stream ExperimentData) {}
+    rpc UpdateEnvoyStatus(UpdateEnvoyStatusRequest) returns (UpdateEnvoyStatusResponse) {}
 
     //Runtime RPCs
     rpc SetNewExperiment(stream ExperimentInfo) returns (SetNewExperimentResponse) {}
     rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
     rpc GetFlowStatus(GetFlowStatusRequest) returns (GetFlowStatusResponse) {}
+    rpc ConnectRuntime(SendRuntimeRequest) returns (RuntimeRequestResponse) {}
 }
 
 message SendConnectionRequest {
@@ -38,6 +45,15 @@ message ExperimentData {
     bytes npbytes = 2;
 }
 
+message UpdateEnvoyStatusRequest {
+    string name = 1;
+    bool is_experiment_running = 2;
+}
+
+message UpdateEnvoyStatusResponse {
+    google.protobuf.Duration health_check_period = 1;
+}
+
 message ExperimentInfo {
     string name = 1;
     repeated string collaborator_names = 2;
@@ -59,4 +75,10 @@ message GetFlowStatusRequest {}
 message GetFlowStatusResponse {
     bool completed = 1;
     bytes flspec_obj = 2;
+}
+
+message SendRuntimeRequest {}
+
+message RuntimeRequestResponse {
+    bool accepted = 1;
 }

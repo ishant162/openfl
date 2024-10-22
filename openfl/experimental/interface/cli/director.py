@@ -116,6 +116,7 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
         certificate=config.certificate,
         listen_host=config.settings.listen_host,
         listen_port=config.settings.listen_port,
+        envoy_health_check_period=config.settings.envoy_health_check_period,
         install_requirements=config.settings.install_requirements,
         director_config=director_config_path,
     )
