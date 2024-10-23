@@ -210,13 +210,3 @@ class DirectorClient:
             health_check_period = response.health_check_period.seconds
 
             return health_check_period
-
-    def connect_runtime(self):
-        """Connect runtime to the director
-
-        Returns:
-            accepted (bool): True or False
-        """
-        response = self.stub.ConnectRuntime(director_pb2.SendRuntimeRequest())
-
-        return response.accepted

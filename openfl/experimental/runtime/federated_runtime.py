@@ -79,7 +79,6 @@ class FederatedRuntime(Runtime):
         self.kwargs = kwargs
         self.generated_workspace_path = None
         self.logger = logging.getLogger(__name__)
-        # self.connect_runtime()
 
     @property
     def aggregator(self) -> str:
@@ -208,22 +207,6 @@ class FederatedRuntime(Runtime):
         """
         envoys = self._dir_client.get_envoys()
         return envoys
-
-    def connect_runtime(self):
-        """Connect runtime to the director"""
-
-        try:
-            is_accepted = self._dir_client.connect_runtime()
-        except Exception as exc:
-            print("Failed to connect FederatedRuntime: %s", exc)
-            sys.exit(1)
-        else:
-            if is_accepted:
-                print("FederatedRuntime was connected to the director")
-            else:
-                # Connection failed
-                print("FederatedRuntime failed to connect to the director")
-                sys.exit(1)
 
     def __repr__(self):
         return "FederatedRuntime"

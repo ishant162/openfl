@@ -267,16 +267,3 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             resp.health_check_period.seconds = health_check_period
 
             return resp
-
-    def ConnectRuntime(self, request, context):
-        """Connect runtime to the director
-
-        Returns:
-            accepted (bool): True or False
-        """
-        self.logger.info("Runtime is attempting to connect")
-        is_accepted = True
-        if is_accepted:
-            self.logger.info("Runtime is connected")
-
-        return director_pb2.RuntimeRequestResponse(accepted=is_accepted)
