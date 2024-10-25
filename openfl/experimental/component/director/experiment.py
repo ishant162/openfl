@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Iterable, List, Union
+from typing import Callable, Iterable, List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -93,6 +93,36 @@ class Experiment:
             raise Exception("Experiment %s failed with error: %s.", self.name, e)
 
         return [self.status == Status.FINISHED, self.updated_flow]
+
+    async def review_experiment(self, review_plan_callback: Callable) -> bool:
+        """Get plan approve in console.
+
+        Args:
+            review_plan_callback (Callable): A callback function for reviewing the plan.
+
+        Returns:
+            bool: True if the plan was approved, False otherwise.
+        """
+        logger.debug("Experiment Review starts")
+        # Extract the workspace for review (without installing requirements)
+        with ExperimentWorkspace(
+            self.name,
+            self.archive_path,
+            install_requirements=False,
+            remove_archive=False,
+        ):
+            loop = asyncio.get_event_loop()
+            # Call for a review in a separate thread (server is not blocked)
+            review_approve = await loop.run_in_executor(
+                None, review_plan_callback, self.name, self.plan_path
+            )
+            if not review_approve:
+                self.status = Status.REJECTED
+                self.archive_path.unlink(missing_ok=True)
+                return False
+
+        logger.debug("Experiment Review succeeded")
+        return True
 
     def _create_aggregator_grpc_server(
         self,

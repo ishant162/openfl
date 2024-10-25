@@ -9,7 +9,7 @@ import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable, Tuple, Union
+from typing import Callable, Iterable, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -25,6 +25,7 @@ class Director:
         root_certificate: Union[Path, str] = None,
         private_key: Union[Path, str] = None,
         certificate: Union[Path, str] = None,
+        review_plan_callback: Union[None, Callable] = None,
         director_config: Path = None,
         envoy_health_check_period: int = 60,
         install_requirements: bool = False,
@@ -40,6 +41,8 @@ class Director:
                 key for TLS. Defaults to None.
             certificate (Union[Path, str], optional): The path to the
                 certificate for TLS. Defaults to None.
+            review_plan_callback (Union[None, Callable], optional): A callback
+                function for reviewing the plan. Defaults to None.
             director_config (Path): Path to director_config file
             install_requirements (bool, optional): A flag indicating if the
                 requirements should be installed. Defaults to False.
@@ -48,6 +51,7 @@ class Director:
         self.root_certificate = root_certificate
         self.private_key = private_key
         self.certificate = certificate
+        self.review_plan_callback = review_plan_callback
         self.director_config = director_config
         self.install_requirements = install_requirements
         self._flow_status = []
@@ -65,6 +69,14 @@ class Director:
         while True:
             try:
                 async with self.experiments_registry.get_next_experiment() as experiment:
+                    # Review experiment block starts.
+                    if self.review_plan_callback:
+                        if not await experiment.review_experiment(self.review_plan_callback):
+                            self.logger.info(
+                                f'"{experiment.name}" Plan was rejected by the Director manager.'
+                            )
+                            continue
+                    # Review experiment block ends.
                     run_aggregator_future = loop.create_task(
                         experiment.start(
                             root_certificate=self.root_certificate,
