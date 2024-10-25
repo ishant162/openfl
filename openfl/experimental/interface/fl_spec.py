@@ -114,9 +114,15 @@ class FLSpec:
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
                 self.submit_workspace(archive_path, exp_name)
                 flspec_obj = self.flow_status()
+
+                # Updating artifacts of self
+                artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
+                for name, attr in artifacts_iter():
+                    setattr(self, name, deepcopy(attr))
+                self._foreach_methods = flspec_obj._foreach_methods
+                self.execute_task_args = flspec_obj.execute_task_args
             except Exception as e:
                 raise Exception(f"Failed to run experiment:{e}")
-            return flspec_obj
         else:
             raise Exception("Runtime not implemented")
 

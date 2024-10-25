@@ -114,7 +114,7 @@ class Envoy:
                 )
             except EnvoyNotFoundError:
                 self.logger.info(
-                    "The director has lost information about current shard. Resending..."
+                    "The director has lost information about current envoy. Resending..."
                 )
                 self.director_client.connect_envoy(envoy_name=self.name)
             time.sleep(timeout)
@@ -151,7 +151,7 @@ class Envoy:
             sys.exit(1)
         else:
             if is_accepted:
-                self.logger.info(f"{self.name} was connected to the director")
+                self.logger.info(f"{self.name} is connected to the director")
                 self._health_check_future = self.executor.submit(self.send_health_check)
                 self.run()
             else:

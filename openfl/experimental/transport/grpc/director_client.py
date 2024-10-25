@@ -105,7 +105,7 @@ class DirectorClient:
         """
         return director_pb2.WaitExperimentRequest(collaborator_name=self.envoy_name)
 
-    def set_new_experiment(self, archive_path, experiment_name, col_names):
+    def set_new_experiment(self, experiment_name, col_names, archive_path):
         """
         Send the new experiment to director to launch.
 

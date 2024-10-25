@@ -208,18 +208,18 @@ class Director:
                 experiment.
 
         Raises:
-            EnvoyNotFoundError: When Unknown shard {envoy_name}.
+            EnvoyNotFoundError: When Unknown envoy {envoy_name}.
 
         Returns:
             int: Value of the envoy_health_check_period.
         """
-        shard_info = self._envoy_registry.get(envoy_name)
-        if not shard_info:
-            raise EnvoyNotFoundError(f"Unknown shard {envoy_name}")
+        envoy_info = self._envoy_registry.get(envoy_name)
+        if not envoy_info:
+            raise EnvoyNotFoundError(f"Unknown envoy {envoy_name}")
 
-        shard_info["is_online"]: True
-        shard_info["is_experiment_running"] = is_experiment_running
-        shard_info["valid_duration"] = 2 * self.envoy_health_check_period
-        shard_info["last_updated"] = time.time()
+        envoy_info["is_online"]: True
+        envoy_info["is_experiment_running"] = is_experiment_running
+        envoy_info["valid_duration"] = 2 * self.envoy_health_check_period
+        envoy_info["last_updated"] = time.time()
 
         return self.envoy_health_check_period

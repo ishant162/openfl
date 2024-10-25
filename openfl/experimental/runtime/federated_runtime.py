@@ -175,7 +175,8 @@ class FederatedRuntime(Runtime):
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.get_envoys()
             )
         except Exception as e:
-            raise Exception(f"An error occurred during submission: {e}")
+            self.logger.error(f"Failed to submit workspace: {e}")
+            raise
         finally:
             self.remove_workspace_archive(archive_path)
 
@@ -195,7 +196,8 @@ class FederatedRuntime(Runtime):
             sys.path.append(str(self.generated_workspace_path))
             flow_object = pickle.loads(flspec_obj)
         except Exception as e:
-            raise Exception(f"Failed to deserialize flow object: {e}")
+            self.logger.error(f"Failed to deserialize flow object: {e}")
+            raise
 
         return status, flow_object
 
