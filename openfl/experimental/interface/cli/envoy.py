@@ -12,7 +12,9 @@ from click import Path as ClickPath
 from click import group, option, pass_context
 from dynaconf import Validator
 
+from openfl.experimental.component.envoy import Envoy
 from openfl.experimental.interface.cli.cli_helper import WORKSPACE
+from openfl.interface.cli import review_plan_callback
 from openfl.utilities import click_types, merge_configs
 from openfl.utilities.path_check import is_directory_traversal
 
@@ -91,8 +93,6 @@ def start_(
 ):
     """Start the Envoy."""
 
-    from openfl.experimental.component.envoy import Envoy
-
     logger.info("🧿 Starting the Envoy.")
     if is_directory_traversal(envoy_config_path):
         click.echo("The envoy config path is out of the openfl workspace scope.")
@@ -106,7 +106,6 @@ def start_(
             "certificate": certificate,
         },
         validators=[
-            Validator("params.cuda_devices", default=[]),
             Validator("params.install_requirements", default=True),
             Validator("params.review_experiment", default=False),
         ],
@@ -119,6 +118,16 @@ def start_(
     if config.certificate:
         config.certificate = Path(config.certificate).absolute()
 
+    # Parse envoy parameters
+    envoy_params = config.get("params", {})
+
+    # We pass the `review_experiment` callback only if it is needed.
+    # Otherwise we pass None.
+    overwritten_review_plan_callback = None
+    if envoy_params.review_experiment:
+        overwritten_review_plan_callback = review_plan_callback
+    del envoy_params.review_experiment
+
     envoy = Envoy(
         envoy_name=envoy_name,
         director_host=director_host,
@@ -128,6 +137,7 @@ def start_(
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,
+        review_plan_callback=overwritten_review_plan_callback,
     )
 
     envoy.start()

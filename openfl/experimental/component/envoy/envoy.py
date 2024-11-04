@@ -7,7 +7,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport.grpc.director_client import DirectorClient
@@ -32,8 +32,28 @@ class Envoy:
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
         install_requirements: bool = False,
+        review_plan_callback: Union[None, Callable] = None,
     ) -> None:
-        """Initialize a envoy object."""
+        """Initialize a envoy object.
+
+        Args:
+            envoy_name (str): The name of the envoy.
+            director_host (str): The host of the director.
+            director_port (int): The port of the director.
+            envoy_config (Path): Path to envoy_config.yaml
+            root_certificate (Optional[Union[Path, str]], optional): The path
+                to the root certificate for TLS. Defaults to None.
+            private_key (Optional[Union[Path, str]], optional): The path to
+                the private key for TLS. Defaults to None.
+            certificate (Optional[Union[Path, str]], optional): The path to
+                the certificate for TLS. Defaults to None.
+            tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+            install_requirements (bool, optional): A flag indicating if the
+                requirements should be installed. Defaults to True.
+            review_plan_callback (Union[None, Callable], optional): A callback
+                function for reviewing the plan. Defaults to None.
+        """
         self.name = envoy_name
         self.envoy_config = envoy_config
         self.root_certificate = (
@@ -43,6 +63,7 @@ class Envoy:
         self.certificate = Path(certificate).absolute() if root_certificate is not None else None
         self.tls = tls
         self.install_requirements = install_requirements
+        self.review_plan_callback = review_plan_callback
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,
