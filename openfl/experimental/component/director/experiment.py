@@ -83,7 +83,7 @@ class Experiment:
                     self._run_aggregator_grpc_server(
                         aggregator_grpc_server=aggregator_grpc_server,
                     ),
-                    self.aggregator.run_experiment(),
+                    self.aggregator.run_flow(),
                 )
             self.updated_flow = results[1]
             self.status = Status.FINISHED
