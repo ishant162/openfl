@@ -180,7 +180,7 @@ class FederatedRuntime(Runtime):
 
         try:
             response = self._dir_client.set_new_experiment(
-                archive_path=archive_path, experiment_name=exp_name, col_names=self.get_envoys()
+                archive_path=archive_path, experiment_name=exp_name, col_names=self.collaborators
             )
         except Exception as e:
             self.logger.error(f"Failed to submit workspace: {e}")

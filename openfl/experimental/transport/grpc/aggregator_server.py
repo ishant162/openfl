@@ -231,7 +231,7 @@ class AggregatorGRPCServer(aggregator_pb2_grpc.AggregatorServicer):
         except KeyboardInterrupt:
             pass
         finally:
-            print("All Jobs Sent Successfully, Exiting...")
+            self.logger.info("All Jobs Sent Successfully, Exiting...")
             self.stop_server()
 
     def run_server(self):

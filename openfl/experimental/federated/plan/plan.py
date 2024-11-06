@@ -502,18 +502,17 @@ class Plan:
 
     def get_private_attr_from_config(self, config):
         private_attrs_callable = None
-        private_attrs_kwargs = {}
+        private_attrs_kwargs = None
         private_attributes = {}
 
         d = Plan.load(config)
-        callable_func = d.get("private_attribute_callable", {})
-        if callable_func is not None:
-            private_attrs_callable = {"template": d.get("private_attribute_callable")["template"]}
-            private_attrs_kwargs = self.import_kwargs_modules(d.get("private_attribute_callable"))[
-                "settings"
-            ]
+        callable_func = d.get("private_attribute_callable") if d else None
+
+        if callable_func:
+            private_attrs_callable = {"template": callable_func["template"]}
+            private_attrs_kwargs = self.import_kwargs_modules(callable_func)["settings"]
 
             if isinstance(private_attrs_callable, dict):
                 private_attrs_callable = Plan.import_(**private_attrs_callable)
 
-            return private_attrs_callable, private_attrs_kwargs, private_attributes
+        return (private_attrs_callable, private_attrs_kwargs, private_attributes)

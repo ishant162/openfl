@@ -4,6 +4,7 @@
 import logging
 import sys
 import time
+import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -96,11 +97,28 @@ class Envoy:
                     data_file_path=data_file_path,
                     install_requirements=self.install_requirements,
                 ):
+                    # If the callback is passed
+                    if self.review_plan_callback:
+                        # envoy to review the experiment before starting
+                        if not self.review_plan_callback("plan", "plan/plan.yaml"):
+                            self.director_client.set_experiment_failed(
+                                experiment_name,
+                                error_description="Experiment is rejected"
+                                f' by Envoy "{self.name}" manager.',
+                            )
+                            continue
+                        self.logger.debug(
+                            f'Experiment "{experiment_name}" was accepted by Envoy manager'
+                        )
                     self.is_experiment_running = True
                     self._run_collaborator()
             except Exception as exc:
                 self.logger.exception("Collaborator failed with error: %s:", exc)
-                # TODO: Implement set_experiment_failed functionality
+                self.director_client.set_experiment_failed(
+                    experiment_name,
+                    error_code=1,
+                    error_description=traceback.format_exc(),
+                )
             finally:
                 self.is_experiment_running = False
 

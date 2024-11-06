@@ -1,6 +1,3 @@
-params:
-  review_experiment: True
-
 private_attribute_callable:
   settings:
     batch_size: 64
