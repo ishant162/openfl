@@ -256,16 +256,9 @@ class Plan:
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
         defaults[SETTINGS]["authorized_cols"] = self.authorized_cols
 
-        if director_config:
-            private_attrs_callable, private_attrs_kwargs, private_attributes = (
-                self.get_private_attr_from_config(director_config)
-            )
-        else:
-            private_attrs_callable, private_attrs_kwargs, private_attributes = (
-                self.get_private_attr(
-                    "aggregator",
-                )
-            )
+        private_attrs_callable, private_attrs_kwargs, private_attributes = self.get_private_attr(
+            "aggregator", director_config
+        )
         defaults[SETTINGS]["private_attributes_callable"] = private_attrs_callable
         defaults[SETTINGS]["private_attributes_kwargs"] = private_attrs_kwargs
         defaults[SETTINGS]["private_attributes"] = private_attributes
@@ -312,14 +305,9 @@ class Plan:
         defaults[SETTINGS]["aggregator_uuid"] = self.aggregator_uuid
         defaults[SETTINGS]["federation_uuid"] = self.federation_uuid
 
-        if envoy_config:
-            private_attrs_callable, private_attrs_kwargs, private_attributes = (
-                self.get_private_attr_from_config(envoy_config)
-            )
-        else:
-            private_attrs_callable, private_attrs_kwargs, private_attributes = (
-                self.get_private_attr(collaborator_name)
-            )
+        private_attrs_callable, private_attrs_kwargs, private_attributes = self.get_private_attr(
+            collaborator_name, envoy_config
+        )
         defaults[SETTINGS]["private_attributes_callable"] = private_attrs_callable
         defaults[SETTINGS]["private_attributes_kwargs"] = private_attrs_kwargs
         defaults[SETTINGS]["private_attributes"] = private_attributes
@@ -450,15 +438,14 @@ class Plan:
         defaults[SETTINGS] = import_nested_settings(defaults[SETTINGS])
         return defaults
 
-    def get_private_attr(self, private_attr_name=None):
-        private_attrs_callable = None
-        private_attrs_kwargs = {}
+    def get_private_attr(self, private_attr_name=None, config=None):
+        private_attrs_callable = private_attrs_kwargs = None
         private_attributes = {}
 
         data_yaml = "plan/data.yaml"
 
-        if os.path.exists(data_yaml) and os.path.isfile(data_yaml):
-            d = Plan.load(Path(data_yaml).absolute())
+        if config or (os.path.exists(data_yaml) and os.path.isfile(data_yaml)):
+            d = Plan.load(config) if config else Plan.load(Path(data_yaml).absolute())
 
             if d.get(private_attr_name, None):
                 callable_func = d.get(private_attr_name, {}).get("callable_func")
@@ -493,26 +480,8 @@ class Plan:
                         f"or be import from code part, get {private_attrs_callable}"
                     )
 
-                return (
-                    private_attrs_callable,
-                    private_attrs_kwargs,
-                    private_attributes,
-                )
-        return None, None, {}
-
-    def get_private_attr_from_config(self, config):
-        private_attrs_callable = None
-        private_attrs_kwargs = None
-        private_attributes = {}
-
-        d = Plan.load(config)
-        callable_func = d.get("private_attribute_callable") if d else None
-
-        if callable_func:
-            private_attrs_callable = {"template": callable_func["template"]}
-            private_attrs_kwargs = self.import_kwargs_modules(callable_func)["settings"]
-
-            if isinstance(private_attrs_callable, dict):
-                private_attrs_callable = Plan.import_(**private_attrs_callable)
-
-        return (private_attrs_callable, private_attrs_kwargs, private_attributes)
+        return (
+            private_attrs_callable,
+            private_attrs_kwargs,
+            private_attributes,
+        )

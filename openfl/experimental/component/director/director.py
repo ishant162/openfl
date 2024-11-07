@@ -11,11 +11,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Iterable, Tuple, Union
 
-from openfl.experimental.component.director.experiment import (
-    Experiment,
-    ExperimentsRegistry,
-    Status,
-)
+from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 
 
@@ -239,19 +235,3 @@ class Director:
         envoy_info["last_updated"] = time.time()
 
         return self.envoy_health_check_period
-
-    def set_experiment_failed(self, *, experiment_name: str, collaborator_name: str):
-        """Envoys Set experiment failed RPC.
-
-        Args:
-            experiment_name (str): String id for experiment.
-            collaborator_name (str): String id for collaborator.
-
-        Return:
-            None
-        """
-        if experiment_name not in self.experiments_registry:
-            return
-        aggregator = self.experiments_registry[experiment_name].aggregator
-        aggregator.stop(failed_collaborator=collaborator_name)
-        self.experiments_registry[experiment_name].status = Status.FAILED

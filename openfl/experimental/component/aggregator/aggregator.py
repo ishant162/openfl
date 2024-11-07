@@ -467,27 +467,6 @@ class Aggregator:
                 and collaborator_common_name in self.authorized_cols
             )
 
-    def stop(self, failed_collaborator: str = None) -> None:
-        """Stop aggregator execution.
-
-        Args:
-            failed_collaborator (str, optional): Failed collaborator. Defaults to None.
-        """
-        self.logger.info("Force stopping the aggregator execution.")
-        # We imitate quit_job_sent_to the failed collaborator
-        # So the experiment set to a finished state
-        if failed_collaborator:
-            self.quit_job_sent_to.append(failed_collaborator)
-
-        # This code does not actually send `quit` tasks to collaborators,
-        # it just mimics it by filling arrays.
-        for collaborator_name in filter(lambda c: c != failed_collaborator, self.authorized_cols):
-            self.logger.info(
-                "Sending signal to collaborator %s to shutdown...",
-                collaborator_name,
-            )
-            self.quit_job_sent_to.append(collaborator_name)
-
     def all_quit_jobs_sent(self) -> bool:
         """Assert all quit jobs are sent to collaborators."""
         return set(self.quit_job_sent_to) == set(self.authorized_cols)

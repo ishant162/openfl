@@ -4,11 +4,10 @@
 import logging
 import sys
 import time
-import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport.grpc.director_client import DirectorClient
@@ -33,7 +32,6 @@ class Envoy:
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
         install_requirements: bool = False,
-        review_plan_callback: Union[None, Callable] = None,
     ) -> None:
         """Initialize a envoy object.
 
@@ -52,8 +50,6 @@ class Envoy:
                 connections. Defaults to True.
             install_requirements (bool, optional): A flag indicating if the
                 requirements should be installed. Defaults to True.
-            review_plan_callback (Union[None, Callable], optional): A callback
-                function for reviewing the plan. Defaults to None.
         """
         self.name = envoy_name
         self.envoy_config = envoy_config
@@ -64,7 +60,6 @@ class Envoy:
         self.certificate = Path(certificate).absolute() if root_certificate is not None else None
         self.tls = tls
         self.install_requirements = install_requirements
-        self.review_plan_callback = review_plan_callback
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,
@@ -97,28 +92,11 @@ class Envoy:
                     data_file_path=data_file_path,
                     install_requirements=self.install_requirements,
                 ):
-                    # If the callback is passed
-                    if self.review_plan_callback:
-                        # envoy to review the experiment before starting
-                        if not self.review_plan_callback("plan", "plan/plan.yaml"):
-                            self.director_client.set_experiment_failed(
-                                experiment_name,
-                                error_description="Experiment is rejected"
-                                f' by Envoy "{self.name}" manager.',
-                            )
-                            continue
-                        self.logger.debug(
-                            f'Experiment "{experiment_name}" was accepted by Envoy manager'
-                        )
+                    # TODO: Implement revire_plan_callback
                     self.is_experiment_running = True
                     self._run_collaborator()
             except Exception as exc:
                 self.logger.exception("Collaborator failed with error: %s:", exc)
-                self.director_client.set_experiment_failed(
-                    experiment_name,
-                    error_code=1,
-                    error_description=traceback.format_exc(),
-                )
             finally:
                 self.is_experiment_running = False
 

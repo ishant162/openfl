@@ -271,30 +271,3 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             resp.health_check_period.seconds = health_check_period
 
             return resp
-
-    async def SetExperimentFailed(self, request, context):
-        """Set the experiment failed.
-
-        Args:
-            request (director_pb2.SetExperimentFailedRequest): The request
-                from the collaborator.
-            context (grpc.ServicerContext): The context of the request.
-
-        Returns:
-            response (director_pb2.SetExperimentFailedResponse): The response
-                to the request.
-        """
-        response = director_pb2.SetExperimentFailedResponse()
-        if self.get_caller(context) != CLIENT_ID_DEFAULT:
-            return response
-        self.logger.error(
-            f"Collaborator {request.collaborator_name} failed with error code:"
-            f" {request.error_code}, error_description: {request.error_description}"
-            f"Stopping experiment."
-        )
-        self.director.set_experiment_failed(
-            experiment_name=request.experiment_name,
-            collaborator_name=request.collaborator_name,
-        )
-
-        return response

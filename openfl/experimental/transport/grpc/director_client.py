@@ -210,27 +210,3 @@ class DirectorClient:
             health_check_period = response.health_check_period.seconds
 
             return health_check_period
-
-    def set_experiment_failed(
-        self,
-        experiment_name: str,
-        error_code: int = 1,
-        error_description: str = "",
-    ):
-        """
-        Set the experiment failed.
-
-        Args:
-            experiment_name (str): The name of the experiment.
-            error_code (int, optional): The error code. Defaults to 1.
-            error_description (str, optional): The description of the error.
-                Defaults to ''.
-        """
-        self.logger.info("Experiment %s failed", experiment_name)
-        request = director_pb2.SetExperimentFailedRequest(
-            experiment_name=experiment_name,
-            collaborator_name=self.envoy_name,
-            error_code=error_code,
-            error_description=error_description,
-        )
-        self.stub.SetExperimentFailed(request)
