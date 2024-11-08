@@ -61,6 +61,7 @@ class Director:
         self.col_exp_queues = defaultdict(asyncio.Queue)
         self._envoy_registry = {}
         self.envoy_health_check_period = envoy_health_check_period
+        self.authorized_cols = []
         self.logger = logging.getLogger(__name__)
 
     async def start_experiment_execution_loop(self):
@@ -69,6 +70,12 @@ class Director:
         while True:
             try:
                 async with self.experiments_registry.get_next_experiment() as experiment:
+                    # Wait until the authorized envoys are connected
+                    while sorted(self.authorized_cols) != sorted(self.get_envoys()):
+                        self.logger.info(
+                            f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
+                        )
+                        await asyncio.sleep(10)
                     # Review experiment block starts.
                     if self.review_plan_callback:
                         if not await experiment.review_experiment(self.review_plan_callback):
@@ -162,6 +169,7 @@ class Director:
             plan_path="plan/plan.yaml",
         )
 
+        self.authorized_cols = collaborator_names
         self.experiments_registry.add(experiment)
         return True
 

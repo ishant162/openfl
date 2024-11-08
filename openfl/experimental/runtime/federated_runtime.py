@@ -10,7 +10,6 @@ import logging
 import os
 import pickle
 import sys
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -171,13 +170,6 @@ class FederatedRuntime(Runtime):
         Returns:
             response: The response object from the director containing status.
         """
-
-        while sorted(self.collaborators) != sorted(self.get_envoys()):
-            print(
-                f"Waiting for {len(self.get_envoys())}/{len(self.collaborators)} envoys to connect..."
-            )
-            time.sleep(10)
-
         try:
             response = self._dir_client.set_new_experiment(
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.collaborators
