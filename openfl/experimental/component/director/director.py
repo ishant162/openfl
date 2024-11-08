@@ -14,9 +14,33 @@ from typing import Callable, Iterable, Tuple, Union
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 
+logger = logging.getLogger(__name__)
+
 
 class Director:
-    """Director class."""
+    """Director class. The Director is the central node of the federation
+    (Experimental Director-API).
+
+    Attributes:
+        tls (bool): A flag indicating if TLS should be used for connections.
+        root_certificate (Union[Path, str]): The path to the root certificate
+            for TLS.
+        private_key (Union[Path, str]): The path to the private key for TLS.
+        certificate (Union[Path, str]): The path to the certificate for TLS.
+        review_plan_callback (Union[None, Callable]): A callback function for
+            reviewing the plan.
+        envoy_health_check_period (int): The period for health check of envoys
+            in seconds.
+        install_requirements (bool): A flag indicating if the requirements
+            should be installed.
+        experiments_registry (ExperimentsRegistry): An object of
+            ExperimentsRegistry to store the experiments.
+        col_exp_queues (defaultdict): A defaultdict to store the experiment
+            queues for collaborators.
+        col_exp (dict): A dictionary to store the experiments for
+            collaborators.
+        authorized_cols (list): A list of authorized envoys
+    """
 
     def __init__(
         self,
@@ -61,8 +85,9 @@ class Director:
         self.col_exp_queues = defaultdict(asyncio.Queue)
         self._envoy_registry = {}
         self.envoy_health_check_period = envoy_health_check_period
+        # "Authorized Collaborators" includes envoys, as each envoy maps to a collaborator.
+        # This naming avoids confusion where collaborator roles are referenced broadly.
         self.authorized_cols = []
-        self.logger = logging.getLogger(__name__)
 
     async def start_experiment_execution_loop(self):
         """Run tasks and experiments here"""
@@ -72,14 +97,14 @@ class Director:
                 async with self.experiments_registry.get_next_experiment() as experiment:
                     # Wait until the authorized envoys are connected
                     while sorted(self.authorized_cols) != sorted(self.get_envoys()):
-                        self.logger.info(
+                        logger.info(
                             f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
                         )
                         await asyncio.sleep(10)
                     # Review experiment block starts.
                     if self.review_plan_callback:
                         if not await experiment.review_experiment(self.review_plan_callback):
-                            self.logger.info(
+                            logger.info(
                                 f'"{experiment.name}" Plan was rejected by the Director manager.'
                             )
                             continue
@@ -104,7 +129,8 @@ class Director:
                 raise Exception(f"Error while executing experiment: {e}")
 
     async def get_flow_status(self) -> Tuple[bool, bytes]:
-        """Wait until the experiment is finished and return True.
+        """Wait until the experiment flow status indicates completion
+        and return the status along with a serialized FLSpec object.
 
         Returns:
             status (bool): The flow status.
@@ -182,20 +208,17 @@ class Director:
         Returns:
             str: Path of archive.
         """
-        try:
-            if experiment_name not in self.experiments_registry:
-                raise KeyError(f"Experiment {experiment_name} not found in registry")
-            return self.experiments_registry[experiment_name].archive_path
-        except Exception as e:
-            print(f"Error retrieving experiment data: {e}")
-            return None
+        return self.experiments_registry[experiment_name].archive_path
 
     def acknowledge_envoys(self, envoy_name: str) -> bool:
-        """
-        Save the envoys
+        """Save the envoy info into _envoy_registry
 
         Args:
             envoy_name (str): Name of the envoy
+
+        Returns:
+            bool: Always returns True to indicate the envoy
+                has been successfully acknowledged.
         """
         self._envoy_registry[envoy_name] = {
             "is_online": True,
@@ -203,6 +226,8 @@ class Director:
             "last_updated": time.time(),
             "valid_duration": 2 * self.envoy_health_check_period,
         }
+        # Currently always returns True, indicating the envoy was added successfully.
+        # Future logic might change this to handle conditions.
         return True
 
     def get_envoys(self):
