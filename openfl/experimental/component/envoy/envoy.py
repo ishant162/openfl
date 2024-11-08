@@ -18,7 +18,23 @@ DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
 
 
 class Envoy:
-    """Envoy class."""
+    """Envoy class. The Envoy is a long-lived entity that runs on collaborator
+    nodes connected to the Director.
+
+    Attributes:
+        envoy_name (str): The name of the envoy.
+        root_certificate (Union[Path, str]): The path to the root certificate
+            for TLS.
+        private_key (Union[Path, str]): The path to the private key for TLS.
+        certificate (Union[Path, str]): The path to the certificate for TLS.
+        director_client (DirectorClient): The director client.
+        install_requirements (bool): A flag indicating if the requirements
+            should be installed.
+        executor (ThreadPoolExecutor): The executor for running tasks.
+        is_experiment_running (bool): A flag indicating if an experiment is
+            running.
+        _health_check_future (object): The future object for the health check.
+    """
 
     def __init__(
         self,
@@ -53,25 +69,41 @@ class Envoy:
         """
         self.name = envoy_name
         self.envoy_config = envoy_config
-        self.root_certificate = (
-            Path(root_certificate).absolute() if root_certificate is not None else None
-        )
-        self.private_key = Path(private_key).absolute() if root_certificate is not None else None
-        self.certificate = Path(certificate).absolute() if root_certificate is not None else None
         self.tls = tls
+        self._fill_certs(root_certificate, private_key, certificate)
         self.install_requirements = install_requirements
         self.director_client = DirectorClient(
             director_host=director_host,
             director_port=director_port,
             envoy_name=envoy_name,
             tls=self.tls,
-            root_certificate=root_certificate,
-            private_key=private_key,
-            certificate=certificate,
+            root_certificate=self.root_certificate,
+            private_key=self.private_key,
+            certificate=self.certificate,
         )
         self.logger = logging.getLogger(__name__)
         self.is_experiment_running = False
         self.executor = ThreadPoolExecutor()
+
+    def _fill_certs(self, root_certificate, private_key, certificate):
+        """Fill certificates.
+
+        Args:
+            root_certificate (Union[Path, str]): The path to the root
+                certificate for the TLS connection.
+            private_key (Union[Path, str]): The path to the server's private
+                key for the TLS connection.
+            certificate (Union[Path, str]): The path to the server's
+                certificate for the TLS connection.
+        """
+        if self.tls:
+            if not (root_certificate and private_key and certificate):
+                raise Exception("No certificates provided")
+            self.root_certificate = Path(root_certificate).absolute()
+            self.private_key = Path(private_key).absolute()
+            self.certificate = Path(certificate).absolute()
+        else:
+            self.root_certificate = self.private_key = self.certificate = None
 
     def run(self):
         """Run of the envoy working cycle."""
@@ -92,7 +124,7 @@ class Envoy:
                     data_file_path=data_file_path,
                     install_requirements=self.install_requirements,
                 ):
-                    # TODO: Implement revire_plan_callback
+                    # TODO: Implement review_plan_callback
                     self.is_experiment_running = True
                     self._run_collaborator()
             except Exception as exc:
@@ -136,15 +168,11 @@ class Envoy:
                 self.director_client.connect_envoy(envoy_name=self.name)
             time.sleep(timeout)
 
-    def _run_collaborator(self, plan="plan/plan.yaml"):
-        """
-        Run the collaborator for the experiment running.
+    def _run_collaborator(self, plan="plan/plan.yaml") -> None:
+        """Run the collaborator for the experiment running.
 
         Args:
             plan: plan.yaml file path
-
-        Returns:
-            None
         """
         plan = Plan.parse(plan_config_path=Path(plan))
         self.logger.info("🧿 Starting the Collaborator Service.")

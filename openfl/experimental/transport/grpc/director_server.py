@@ -86,9 +86,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         super().__init__()
         self.listen_uri = f"{listen_host}:{listen_port}"
         self.tls = tls
-        self.root_certificate = None
-        self.private_key = None
-        self.certificate = None
         self._fill_certs(root_certificate, private_key, certificate)
         self.server = None
         self.root_dir = Path.cwd()
@@ -111,6 +108,8 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             self.root_certificate = Path(root_certificate).absolute()
             self.private_key = Path(private_key).absolute()
             self.certificate = Path(certificate).absolute()
+        else:
+            self.root_certificate = self.private_key = self.certificate = None
 
     def start(self):
         """Launch the director GRPC server."""
