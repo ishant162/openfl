@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from openfl.experimental.runtime.runtime import Runtime
 from openfl.experimental.transport.grpc.director_client import DirectorClient
+from openfl.experimental.workspace_export import WorkspaceExport
 
 if TYPE_CHECKING:
     from openfl.experimental.interface import Aggregator
@@ -22,9 +23,22 @@ if TYPE_CHECKING:
 
 from typing import Any, Dict, List, Tuple, Type
 
+logger = logging.getLogger(__name__)
+
 
 class FederatedRuntime(Runtime):
-    """Class for a federated runtime, derived from the Runtime class."""
+    """Class for a federated runtime, derived from the Runtime class.
+
+    Attributes:
+        aggregator (str): The aggregator participant.
+        collaborators (list): List of Authorized collaborators
+        notebook_path : Path to the Jupyter notebook
+        tls (bool): A flag indicating if TLS should be used for
+            connections. Defaults to False.
+        director (dict): Dictionary containing director info.
+        _dir_client (DirectorClient): The director client.
+        generated_workspace_path (Path): Path to generated workspace
+    """
 
     def __init__(
         self,
@@ -40,9 +54,9 @@ class FederatedRuntime(Runtime):
         Use single node to run the flow.
 
         Args:
-            aggregator (str, optional): Name of the aggregator. Defaults to
+            aggregator (str): Name of the aggregator. Defaults to
                 None.
-            collaborators (List[str], optional): List of collaborator names.
+            collaborators (List[str]): List of Authorized collaborators.
                 Defaults to None.
             director (Dict): Director information. Defaults to None
             notebook_path (str): Jupyter notebook path
@@ -75,10 +89,7 @@ class FederatedRuntime(Runtime):
                 private_key=self.private_key,
                 certificate=self.certificate,
             )
-
-        self.kwargs = kwargs
         self.generated_workspace_path = None
-        self.logger = logging.getLogger(__name__)
 
     @property
     def aggregator(self) -> str:
@@ -136,18 +147,11 @@ class FederatedRuntime(Runtime):
             Tuple[Path, str]: A tuple containing the path of the created
         archive and the experiment name.
         """
-        from openfl.experimental.workspace_export import WorkspaceExport
-
-        try:
-            self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
-                notebook_path=self.notebook_path,
-                output_workspace="./generated_workspace",
-                federated_runtime=True,
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to export workspace: {e}")
-            raise
-
+        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
+            notebook_path=self.notebook_path,
+            output_workspace="./generated_workspace",
+            federated_runtime=True,
+        )
         return archive_path, exp_name
 
     def remove_workspace_archive(self, archive_path) -> None:
@@ -174,9 +178,6 @@ class FederatedRuntime(Runtime):
             response = self._dir_client.set_new_experiment(
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.collaborators
             )
-        except Exception as e:
-            self.logger.error(f"Failed to submit workspace: {e}")
-            raise
         finally:
             self.remove_workspace_archive(archive_path)
 
@@ -192,12 +193,10 @@ class FederatedRuntime(Runtime):
         """
         status, flspec_obj = self._dir_client.get_flow_status()
 
-        try:
-            sys.path.append(str(self.generated_workspace_path))
-            flow_object = pickle.loads(flspec_obj)
-        except Exception as e:
-            self.logger.error(f"Failed to deserialize flow object: {e}")
-            raise
+        # Append generated workspace path to sys.path
+        # to allow unpickling of flspec_obj
+        sys.path.append(str(self.generated_workspace_path))
+        flow_object = pickle.loads(flspec_obj)
 
         return status, flow_object
 

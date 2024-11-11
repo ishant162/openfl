@@ -10,9 +10,19 @@ from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 
 from .grpc_channel_options import channel_options
 
+logger = logging.getLogger(__name__)
+
 
 class DirectorClient:
-    """The director client class."""
+    """Director client class for users.
+
+    This class communicates with the director to manage the user's
+    participation in the federation.
+
+    Attributes:
+        stub (director_pb2_grpc.DirectorStub): The gRPC stub for communication
+            with the director.
+    """
 
     def __init__(
         self,
@@ -25,9 +35,23 @@ class DirectorClient:
         private_key: str,
         certificate: str,
     ) -> None:
-        """Initialize a director client object."""
-        self.envoy_name = envoy_name
+        """
+        Initialize director client object.
+
+        Args:
+            director_host (str): The host of the director.
+            director_port (int): The port of the director.
+            envoy_name (str): The name of the envoy.
+            tls (bool): Whether to use TLS for the connection.
+            root_certificate (str): The path to the root certificate for the
+                TLS connection.
+            private_key (str): The path to the private key for the TLS
+                connection.
+            certificate (str): The path to the certificate for the TLS
+                connection.
+        """
         director_addr = f"{director_host}:{director_port}"
+        self.envoy_name = envoy_name
         if not tls:
             channel = grpc.insecure_channel(director_addr, options=channel_options)
         else:
@@ -50,11 +74,14 @@ class DirectorClient:
             )
             channel = grpc.secure_channel(director_addr, credentials, options=channel_options)
         self.stub = director_pb2_grpc.DirectorStub(channel)
-        self.logger = logging.getLogger(__name__)
 
     def connect_envoy(self, envoy_name: str) -> bool:
-        """Attempt to establish a connection with the director."""
-        self.logger.info(f"Sending {envoy_name} connection request to director")
+        """Attempt to establish a connection with the director.
+
+        Returns:
+            response.accepted (bool): Envoy connection accepted or not
+        """
+        logger.info(f"Sending {envoy_name} connection request to director")
 
         request = director_pb2.SendConnectionRequest(envoy_name=envoy_name)
         response = self.stub.ConnectEnvoy(request)
@@ -68,9 +95,9 @@ class DirectorClient:
         Returns:
             experiment_name (str): The name of the experiment.
         """
-        self.logger.info("Waiting for an experiment to run...")
+        logger.info("Waiting for an experiment to run...")
         response = self.stub.WaitExperiment(self._get_experiment_data())
-        self.logger.info("New experiment received: %s", response)
+        logger.info("New experiment received: %s", response)
         experiment_name = response.experiment_name
         if not experiment_name:
             raise Exception("No experiment")
@@ -88,7 +115,7 @@ class DirectorClient:
             data_stream (grpc._channel._MultiThreadedRendezvous): The data
                 stream of the experiment data.
         """
-        self.logger.info("Getting experiment data for %s...", experiment_name)
+        logger.info("Getting experiment data for %s...", experiment_name)
         request = director_pb2.GetExperimentDataRequest(
             experiment_name=experiment_name, collaborator_name=self.envoy_name
         )
@@ -118,7 +145,7 @@ class DirectorClient:
             resp (director_pb2.SetNewExperimentResponse): The response from
                 the director.
         """
-        self.logger.info("Submitting new experiment %s to director", experiment_name)
+        logger.info("Submitting new experiment %s to director", experiment_name)
 
         experiment_info_gen = self._get_experiment_info(
             arch_path=archive_path,
@@ -199,11 +226,11 @@ class DirectorClient:
             is_experiment_running=is_experiment_running,
         )
 
-        self.logger.debug("Sending health check status: %s", status)
+        logger.debug("Sending health check status: %s", status)
         try:
             response = self.stub.UpdateEnvoyStatus(status)
         except grpc.RpcError as rpc_error:
-            self.logger.error(rpc_error)
+            logger.error(rpc_error)
             if rpc_error.code() == grpc.StatusCode.NOT_FOUND:
                 raise EnvoyNotFoundError
         else:

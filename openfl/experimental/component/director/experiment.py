@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, Iterable, List, Union
+from typing import Any, Callable, Iterable, List, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -28,7 +28,20 @@ class Status:
 
 
 class Experiment:
-    """Experiment class."""
+    """Experiment class.
+
+    Attributes:
+            name (str): The name of the experiment.
+            archive_path (Union[Path, str]): The path to the experiment
+                archive.
+            collaborators (List[str]): The list of collaborators.
+            sender (str): The name of the sender.
+            init_tensor_dict (dict): The initial tensor dictionary.
+            plan_path (Union[Path, str]): The path to the plan.
+            users (Iterable[str]): The list of users.
+            status (str): The status of the experiment.
+            aggregator (object): The aggregator object.
+    """
 
     def __init__(
         self,
@@ -40,7 +53,19 @@ class Experiment:
         plan_path: Union[Path, str] = "plan/plan.yaml",
         users: Iterable[str] = None,
     ) -> None:
-        """Initialize an experiment object."""
+        """Initialize an experiment object.
+
+        Args:
+            name (str): The name of the experiment.
+            archive_path (Union[Path, str]): The path to the experiment
+                archive.
+            collaborators (List[str]): The list of collaborators.
+            sender (str): The name of the sender.
+            plan_path (Union[Path, str], optional): The path to the plan.
+                Defaults to 'plan/plan.yaml'.
+            users (Iterable[str], optional): The list of users. Defaults to
+                None.
+        """
         self.name = name
         self.archive_path = Path(archive_path).absolute()
         self.collaborators = collaborators
@@ -49,7 +74,6 @@ class Experiment:
         self.users = set() if users is None else set(users)
         self.status = Status.PENDING
         self.aggregator = None
-        self.run_aggregator_atask = None
 
     async def start(
         self,
@@ -60,8 +84,27 @@ class Experiment:
         certificate: Union[Path, str] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ):
-        """Run experiment."""
+    ) -> List[Union[bool, Any]]:
+        """Run experiment.
+
+        Args:
+            tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+            root_certificate (Union[Path, str], optional): The path to the
+                root certificate for TLS. Defaults to None.
+            private_key (Union[Path, str], optional): The path to the private
+                key for TLS. Defaults to None.
+            certificate (Union[Path, str], optional): The path to the
+                certificate for TLS. Defaults to None.
+            director_config (Path): Path to director's config file
+            install_requirements (bool, optional): A flag indicating if the
+                requirements should be installed. Defaults to False.
+
+        Returns:
+            List[Union[bool, Any]]:
+                - status: status of the experiment.
+                - updated_flow: The updated flow object.
+        """
         self.status = Status.IN_PROGRESS
         try:
             logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
@@ -133,6 +176,22 @@ class Experiment:
         certificate: Union[Path, str] = None,
         director_config: Path = None,
     ) -> AggregatorGRPCServer:
+        """Create an aggregator gRPC server.
+
+        Args:
+            tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+            root_certificate (Union[Path, str], optional): The path to the
+                root certificate for TLS. Defaults to None.
+            private_key (Union[Path, str], optional): The path to the private
+                key for TLS. Defaults to None.
+            certificate (Union[Path, str], optional): The path to the
+                certificate for TLS. Defaults to None.
+            director_config (Path): Path to director's config file.
+                Defaults to None.
+        Returns:
+            AggregatorGRPCServer: The created aggregator gRPC server.
+        """
         plan = Plan.parse(plan_config_path=self.plan_path)
         plan.authorized_cols = list(self.collaborators)
 
@@ -150,7 +209,12 @@ class Experiment:
     async def _run_aggregator_grpc_server(
         aggregator_grpc_server: AggregatorGRPCServer,
     ) -> None:
-        """Run aggregator."""
+        """Run aggregator.
+
+        Args:
+            aggregator_grpc_server (AggregatorGRPCServer): The aggregator gRPC
+                server to run.
+        """
         logger.info("🧿 Starting the Aggregator Service.")
         grpc_server = aggregator_grpc_server.get_server()
         grpc_server.start()

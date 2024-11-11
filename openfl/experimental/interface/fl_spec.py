@@ -111,18 +111,22 @@ class FLSpec:
                 setattr(self, name, attr)
         elif str(self._runtime) == "FederatedRuntime":
             try:
+                # Prepare workspace and submit it for the FederatedRuntime
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
                 self.submit_workspace(archive_path, exp_name)
+                # Retrieve the flspec object to update the experiment state
                 flspec_obj = self.flow_status()
 
-                # Updating artifacts of self
+                # Update self with artifacts from the generated flspec object
                 artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
                 for name, attr in artifacts_iter():
                     setattr(self, name, deepcopy(attr))
+
+                # Update specific attributes from flspec_obj
                 self._foreach_methods = flspec_obj._foreach_methods
                 self.execute_task_args = flspec_obj.execute_task_args
             except Exception as e:
-                raise Exception(f"Failed to run experiment:{e}")
+                raise Exception(f"Failed to run experiment: {e}") from e
         else:
             raise Exception("Runtime not implemented")
 
@@ -172,16 +176,13 @@ class FLSpec:
             flspec_obj: An updated FLSpec instance if the experiment runs successfully.
                         None if the experiment could not run.
         """
-        try:
-            status, flspec_obj = self.runtime.get_flow_status()
-            if status:
-                print("Experiment ran successfully")
-                return flspec_obj
-            else:
-                print("Experiment could not run")
-                return None  # Return None if the experiment fails
-        except Exception as e:
-            raise Exception(f"An error occurred while getting flow status: {e}")
+        status, flspec_obj = self.runtime.get_flow_status()
+        if status:
+            print("Experiment ran successfully")
+            return flspec_obj
+        else:
+            print("Experiment could not run")
+            return None
 
     def _capture_instance_snapshot(self, kwargs):
         """Takes backup of self before exclude or include filtering.

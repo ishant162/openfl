@@ -32,7 +32,7 @@ mnist_test = torchvision.datasets.MNIST(
 )
 
 
-n_collaborators = 1
+n_collaborators = 2
 batch_size = 32
 
 train = deepcopy(mnist_train)
