@@ -33,6 +33,7 @@ class Envoy:
         executor (ThreadPoolExecutor): The executor for running tasks.
         is_experiment_running (bool): A flag indicating if an experiment is
             running.
+        plan(str): Path to plan.yaml
         _health_check_future (object): The future object for the health check.
     """
 
@@ -84,6 +85,7 @@ class Envoy:
         self.logger = logging.getLogger(__name__)
         self.is_experiment_running = False
         self.executor = ThreadPoolExecutor()
+        self.plan = "plan/plan.yaml"
 
     def _fill_certs(self, root_certificate, private_key, certificate):
         """Fill certificates.
@@ -168,13 +170,9 @@ class Envoy:
                 self.director_client.connect_envoy(envoy_name=self.name)
             time.sleep(timeout)
 
-    def _run_collaborator(self, plan="plan/plan.yaml") -> None:
-        """Run the collaborator for the experiment running.
-
-        Args:
-            plan: plan.yaml file path
-        """
-        plan = Plan.parse(plan_config_path=Path(plan))
+    def _run_collaborator(self) -> None:
+        """Run the collaborator for the experiment running."""
+        plan = Plan.parse(plan_config_path=Path(self.plan))
         self.logger.info("🧿 Starting the Collaborator Service.")
 
         col = plan.get_collaborator(

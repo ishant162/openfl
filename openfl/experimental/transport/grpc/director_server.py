@@ -141,7 +141,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         await self.server.start()
         await self.server.wait_for_termination()
 
-    def get_caller(self, context):
+    def get_caller(self, context) -> str:
         """Get caller name from context.
 
         if tls == True: get caller name from auth_context
