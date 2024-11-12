@@ -99,6 +99,8 @@ class Aggregator:
         self.connected_collaborators = []
         self.tasks_sent_to_collaborators = 0
         self.collaborator_results_received = []
+        self.metric_queue = queue.Queue()
+        self.name = self.flow.runtime.aggregator
 
         if self.__private_attrs_callable is not None:
             self.logger.info("Initializing aggregator private attributes...")
@@ -209,35 +211,43 @@ class Aggregator:
 
         return self.flow
 
-    def call_checkpoint(self, ctx: Any, f: Callable, stream_buffer: bytes = None) -> None:
+    def call_checkpoint(
+        self, name: str, ctx: Any, f: Callable, stream_buffer: bytes = None
+    ) -> None:
         """
         Perform checkpoint task.
 
         Args:
+            name (str): name of the caller
             ctx (FLSpec / bytes): Collaborator FLSpec object for which
                 checkpoint is to be performed.
             f (Callable / bytes): Collaborator Step (Function) which is to be
                 checkpointed.
             stream_buffer (bytes): Captured object for output and error
                 (default=None).
-            reserved_attributes (List[str]): List of attribute names which is
-                to be excluded from checkpoint (default=[]).
-
-        Returns:
-            None
         """
+        # Deserialize objects if passed in serialized form
+        if not isinstance(f, Callable):
+            f = pickle.loads(f)
+        if stream_buffer and isinstance(stream_buffer, bytes):
+            setattr(f.__func__, "_stream_buffer", pickle.loads(stream_buffer))
+
+        # Retrieve and log metrics
+        stdout, _ = f._stream_buffer.get_stdstream()
+        metric = {
+            "round": self.current_round,
+            "metric_origin": name,
+            "task_name": f.__name__,
+            "metric_value": str(stdout.getvalue()),
+        }
+        self.metric_queue.put(metric)
+
+        # Perform checkpoint if enabled
         if self.checkpoint:
-            # Check if arguments are pickled, if yes then unpickle
             if not isinstance(ctx, FLSpec):
                 ctx = pickle.loads(ctx)
-                # Updating metaflow interface object
+                # Update metaflow interface object
                 ctx._metaflow_interface = self.flow._metaflow_interface
-            if not isinstance(f, Callable):
-                f = pickle.loads(f)
-            if isinstance(stream_buffer, bytes):
-                # Set stream buffer as function parameter
-                setattr(f.__func__, "_stream_buffer", pickle.loads(stream_buffer))
-
             checkpoint(ctx, f)
 
     def get_tasks(self, collaborator_name: str) -> Tuple:
@@ -324,7 +334,7 @@ class Aggregator:
                 self.__delete_private_attrs_from_clone(
                     self.flow, "Private attributes: Not Available."
                 )
-                self.call_checkpoint(self.flow, f)
+                self.call_checkpoint(self.name, self.flow, f)
                 self.__set_private_attrs_to_clone(self.flow)
                 # Check if all rounds of external loop is executed
                 if self.current_round is self.rounds_to_train:
@@ -362,7 +372,7 @@ class Aggregator:
 
             self.__delete_private_attrs_from_clone(self.flow, "Private attributes: Not Available.")
             # Take the checkpoint of executed step
-            self.call_checkpoint(self.flow, f)
+            self.call_checkpoint(self.name, self.flow, f)
             self.__set_private_attrs_to_clone(self.flow)
 
             # Next function in the flow

@@ -237,3 +237,21 @@ class DirectorClient:
             health_check_period = response.health_check_period.seconds
 
             return health_check_period
+
+    def stream_metrics(self, experiment_name):
+        """Stream metrics RPC.
+
+        Args:
+            experiment_name (str): The name of the experiment.
+
+        Yields:
+            Dict[str, Any]: The metrics.
+        """
+        request = director_pb2.GetMetricStreamRequest(experiment_name=experiment_name)
+        for metric_message in self.stub.GetMetricStream(request):
+            yield {
+                "round": metric_message.round,
+                "metric_origin": metric_message.metric_origin,
+                "task_name": metric_message.task_name,
+                "metric_value": metric_message.metric_value,
+            }

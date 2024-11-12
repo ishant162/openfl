@@ -114,6 +114,10 @@ class FLSpec:
                 # Prepare workspace and submit it for the FederatedRuntime
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
                 self.submit_workspace(archive_path, exp_name)
+
+                # Stream metrics
+                self.runtime.stream_metrics(exp_name)
+
                 # Retrieve the flspec object to update the experiment state
                 flspec_obj = self.flow_status()
 

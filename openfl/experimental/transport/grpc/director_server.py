@@ -299,3 +299,26 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             resp.health_check_period.seconds = health_check_period
 
             return resp
+
+    async def GetMetricStream(self, request, context):
+        """
+        Request to stream metrics from the aggregator to frontend.
+
+        Args:
+            request (director_pb2.GetMetricStreamRequest): The request from
+                the collaborator.
+            context (grpc.ServicerContext): The context of the request.
+
+        Yields:
+            director_pb2.GetMetricStreamResponse: The metrics.
+        """
+        logger.info("Getting metrics for %s...", request.experiment_name)
+
+        caller = self.get_caller(context)
+        async for metric_dict in self.director.stream_metrics(
+            experiment_name=request.experiment_name, caller=caller
+        ):
+            if metric_dict is None:
+                await asyncio.sleep(1)
+                continue
+            yield director_pb2.GetMetricStreamResponse(**metric_dict)

@@ -18,6 +18,8 @@ service Director {
     rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
     rpc GetFlowStatus(GetFlowStatusRequest) returns (GetFlowStatusResponse) {}
     rpc ConnectRuntime(SendRuntimeRequest) returns (RuntimeRequestResponse) {}
+
+    rpc GetMetricStream(GetMetricStreamRequest) returns (stream GetMetricStreamResponse) {}
 }
 
 message SendConnectionRequest {
@@ -91,4 +93,15 @@ message SendRuntimeRequest {}
 
 message RuntimeRequestResponse {
     bool accepted = 1;
+}
+
+message GetMetricStreamRequest {
+    string experiment_name = 1;
+}
+
+message GetMetricStreamResponse {
+    uint32 round = 1;
+    string metric_origin = 2;
+    string task_name = 3;
+    string metric_value = 4;
 }

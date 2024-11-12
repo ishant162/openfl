@@ -268,3 +268,40 @@ class Director:
         envoy_info["last_updated"] = time.time()
 
         return self.envoy_health_check_period
+
+    async def stream_metrics(self, experiment_name: str, caller: str):
+        """Stream metrics from the aggregator.
+        This method takes next metric dictionary from the aggregator's queue
+        and returns it to the caller.
+
+        Args:
+            experiment_name (str): String id for experiment.
+            caller (str): String id for experiment owner.
+
+        Returns:
+            metric_dict: {'round','metric_origin','task_name','metric_value'}
+                if the queue is not empty.
+            None: queue is empty but the experiment is still running.
+        """
+        if (
+            experiment_name not in self.experiments_registry
+            or caller not in self.experiments_registry[experiment_name].users
+        ):
+            raise Exception(
+                f'No experiment name "{experiment_name}" in experiments list, or caller "{caller}"'
+                f" does not have access to this experiment"
+            )
+
+        while not self.experiments_registry[experiment_name].aggregator:
+            await asyncio.sleep(1)
+        aggregator = self.experiments_registry[experiment_name].aggregator
+
+        while True:
+            if not aggregator.metric_queue.empty():
+                yield aggregator.metric_queue.get()
+                continue
+
+            if aggregator.all_quit_jobs_sent() and aggregator.metric_queue.empty():
+                return
+
+            yield None

@@ -90,6 +90,7 @@ class FederatedRuntime(Runtime):
                 certificate=self.certificate,
             )
         self.generated_workspace_path = None
+        self.experiment_submitted = False
 
     @property
     def aggregator(self) -> str:
@@ -181,6 +182,8 @@ class FederatedRuntime(Runtime):
         finally:
             self.remove_workspace_archive(archive_path)
 
+        self.experiment_submitted = True if response.status else False
+
         return response
 
     def get_flow_status(self) -> Tuple[bool, Any]:
@@ -208,6 +211,19 @@ class FederatedRuntime(Runtime):
         """
         envoys = self._dir_client.get_envoys()
         return envoys
+
+    def stream_metrics(self, experiment_name):
+        """Stream metrics."""
+        if not self.experiment_submitted:
+            return
+        print(f"Getting metrics for {experiment_name}...")
+        for metric_message_dict in self._dir_client.stream_metrics(experiment_name):
+            print(
+                f'Round {metric_message_dict["round"]}, '
+                f'origin: {metric_message_dict["metric_origin"]}, '
+                f'task: {metric_message_dict["task_name"]}'
+                f'\n{metric_message_dict["metric_value"]}'
+            )
 
     def __repr__(self):
         return "FederatedRuntime"

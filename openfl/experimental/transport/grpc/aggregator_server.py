@@ -182,7 +182,9 @@ class AggregatorGRPCServer(aggregator_pb2_grpc.AggregatorServicer):
         function = request.function
         stream_buffer = request.stream_buffer
 
-        self.aggregator.call_checkpoint(execution_environment, function, stream_buffer)
+        self.aggregator.call_checkpoint(
+            collaborator_name, execution_environment, function, stream_buffer
+        )
 
         return aggregator_pb2.CheckpointResponse(header=self.get_header(collaborator_name))
 
