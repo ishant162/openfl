@@ -447,7 +447,7 @@ class Plan:
         if config or (os.path.exists(data_yaml) and os.path.isfile(data_yaml)):
             d = Plan.load(config) if config else Plan.load(Path(data_yaml).absolute())
 
-            if d.get(private_attr_name, None):
+            if d and d.get(private_attr_name, None):
                 callable_func = d.get(private_attr_name, {}).get("callable_func")
                 private_attributes = d.get(private_attr_name, {}).get("private_attributes")
                 if callable_func and private_attributes:
