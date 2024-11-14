@@ -5,7 +5,7 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import grpc
 from grpc import aio, ssl_server_credentials
@@ -49,7 +49,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
-        review_plan_callback: Union[None, Callable] = None,
         listen_host: str = "[::]",
         listen_port: int = 50051,
         envoy_health_check_period: int = 0,
@@ -72,14 +71,10 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             certificate (Optional[Union[Path, str]], optional): The path to
                 the server's certificate for the TLS connection. Defaults to
                 None.
-            review_plan_callback (Union[None, Callable], optional): The
-                callback for reviewing the plan. Defaults to None.
             listen_host (str, optional): The host to listen on. Defaults to
                 '[::]'.
             listen_port (int, optional): The port to listen on. Defaults to
                 50051.
-            review_plan_callback (Union[None, Callable], optional): The
-                callback for reviewing the plan. Defaults to None.
             director_config (Path): Path to director_config file
             **kwargs: Additional keyword arguments.
         """
@@ -94,7 +89,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
-            review_plan_callback=review_plan_callback,
             envoy_health_check_period=envoy_health_check_period,
             director_config=director_config,
             **kwargs,
