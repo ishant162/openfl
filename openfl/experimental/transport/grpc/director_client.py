@@ -84,7 +84,7 @@ class DirectorClient:
         logger.info(f"Sending {envoy_name} connection request to director")
 
         request = director_pb2.SendConnectionRequest(envoy_name=envoy_name)
-        response = self.stub.ConnectEnvoy(request)
+        response = self.stub.EnvoyConnectionRequest(request)
 
         return response.accepted
 
@@ -181,7 +181,7 @@ class DirectorClient:
                     collaborator_names=col_names,
                 )
                 experiment_info.experiment_data.size = len(chunk)
-                experiment_info.experiment_data.npbytes = chunk
+                experiment_info.experiment_data.exp_data = chunk
                 yield experiment_info
                 chunk = arch.read(max_buffer_size)
 

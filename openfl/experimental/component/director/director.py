@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class Director:
-    """Director class. The Director is the central node of the federation
-    (Experimental Director-API).
+    """Director class
 
     Attributes:
         tls (bool): A flag indicating if TLS should be used for connections.
@@ -27,6 +26,7 @@ class Director:
             for TLS.
         private_key (Union[Path, str]): The path to the private key for TLS.
         certificate (Union[Path, str]): The path to the certificate for TLS.
+        director_config (Path): Path to director_config file
         envoy_health_check_period (int): The period for health check of envoys
             in seconds.
         install_requirements (bool): A flag indicating if the requirements
@@ -79,8 +79,7 @@ class Director:
         self.col_exp_queues = defaultdict(asyncio.Queue)
         self._envoy_registry = {}
         self.envoy_health_check_period = envoy_health_check_period
-        # "Authorized Collaborators" includes envoys, as each envoy maps to a collaborator.
-        # This naming avoids confusion where collaborator roles are referenced broadly.
+        # authorized_cols refers to envoy & collaborator pair (one to one mapping)
         self.authorized_cols = []
 
     async def start_experiment_execution_loop(self):
@@ -196,7 +195,7 @@ class Director:
         """
         return self.experiments_registry[experiment_name].archive_path
 
-    def acknowledge_envoys(self, envoy_name: str) -> bool:
+    def ack_envoy_connection_request(self, envoy_name: str) -> bool:
         """Save the envoy info into _envoy_registry
 
         Args:

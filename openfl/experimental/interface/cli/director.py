@@ -12,7 +12,9 @@ from click import Path as ClickPath
 from click import group, option, pass_context
 from dynaconf import Validator
 
+from openfl.experimental.component.director import Director
 from openfl.experimental.interface.cli.cli_helper import WORKSPACE
+from openfl.experimental.transport import DirectorGRPCServer
 from openfl.utilities import merge_configs
 from openfl.utilities.path_check import is_directory_traversal
 
@@ -69,9 +71,6 @@ def director(context):
 )
 def start(director_config_path, tls, root_certificate, private_key, certificate):
     """Start the director service."""
-
-    from openfl.experimental.component.director import Director
-    from openfl.experimental.transport import DirectorGRPCServer
 
     director_config_path = Path(director_config_path).absolute()
     logger.info("🧿 Starting the Director Service.")

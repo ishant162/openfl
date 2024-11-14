@@ -147,8 +147,8 @@ class Envoy:
         data_file_path = Path(str(uuid.uuid4())).absolute()
         with open(data_file_path, "wb") as data_file:
             for response in data_stream:
-                if response.size == len(response.npbytes):
-                    data_file.write(response.npbytes)
+                if response.size == len(response.exp_data):
+                    data_file.write(response.exp_data)
                 else:
                     raise Exception("Broken archive")
         return data_file_path

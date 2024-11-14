@@ -7,7 +7,7 @@ import "google/protobuf/duration.proto";
 
 service Director {
     //Envoy RPCs
-    rpc ConnectEnvoy(SendConnectionRequest) returns (RequestAccepted) {}
+    rpc EnvoyConnectionRequest(SendConnectionRequest) returns (RequestAccepted) {}
     rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse) {}
     rpc GetExperimentData(GetExperimentDataRequest) returns (stream ExperimentData) {}
     rpc UpdateEnvoyStatus(UpdateEnvoyStatusRequest) returns (UpdateEnvoyStatusResponse) {}
@@ -43,7 +43,7 @@ message GetExperimentDataRequest {
 
 message ExperimentData {
     uint32 size = 1;
-    bytes npbytes = 2;
+    bytes exp_data = 2;
 }
 
 message UpdateEnvoyStatusRequest {

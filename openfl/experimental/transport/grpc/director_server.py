@@ -1,6 +1,8 @@
 # Copyright 2020-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+"""Director server."""
+
 import asyncio
 import logging
 import uuid
@@ -12,9 +14,8 @@ from grpc import aio, ssl_server_credentials
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
+from openfl.experimental.transport.grpc.grpc_channel_options import channel_options
 from openfl.protocols.utils import get_headers
-
-from .grpc_channel_options import channel_options
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
     communicate with envoys.
 
     Attributes:
-        director (Director): The director that this server is serving.
         listen_uri (str): The URI that the server is serving on.
         tls (bool): Whether to use TLS for the connection.
         root_certificate (Path): The path to the root certificate for the TLS
@@ -39,6 +39,8 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         certificate (Path): The path to the server's certificate for the TLS
             connection.
         server (grpc.Server): The gRPC server.
+        root_dir (Path): Path to the root directory
+        director (Director): The director that this server is serving.
     """
 
     def __init__(
@@ -106,7 +108,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             self.root_certificate = self.private_key = self.certificate = None
 
     def start(self):
-        """Launch the director GRPC server."""
+        """Launch the DirectorGRPCServer"""
         loop = asyncio.get_event_loop()
         loop.create_task(self.director.start_experiment_execution_loop())
         loop.run_until_complete(self._run_server())
@@ -153,24 +155,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         client_id = headers.get("client_id", CLIENT_ID_DEFAULT)
         return client_id
 
-    def ConnectEnvoy(self, request, context):
-        """Handles a connection request from an Envoy.
-
-        Args:
-            request (director_pb2.ConnectEnvoyRequest): The request from
-                the envoy
-            context (grpc.ServicerContext): The context of the request.
-
-        Returns:
-            director_pb2.RequestAccepted: Indicating if connection was accepted
-        """
-        logger.info(f"Envoy {request.envoy_name} is attempting to connect")
-        is_accepted = self.director.acknowledge_envoys(request.envoy_name)
-        if is_accepted:
-            logger.info(f"Envoy {request.envoy_name} is connected")
-
-        return director_pb2.RequestAccepted(accepted=is_accepted)
-
     async def GetExperimentData(self, request, context):
         """Receive experiment data.
 
@@ -189,7 +173,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                 data = df.read(max_buffer_size)
                 if len(data) == 0:
                     break
-                yield director_pb2.ExperimentData(size=len(data), npbytes=data)
+                yield director_pb2.ExperimentData(size=len(data), exp_data=data)
 
     async def WaitExperiment(self, request, context):
         """Request for wait an experiment.
@@ -229,8 +213,8 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         data_file_path = self.root_dir / str(uuid.uuid4())
         with open(data_file_path, "wb") as data_file:
             async for request in stream:
-                if request.experiment_data.size == len(request.experiment_data.npbytes):
-                    data_file.write(request.experiment_data.npbytes)
+                if request.experiment_data.size == len(request.experiment_data.exp_data):
+                    data_file.write(request.experiment_data.exp_data)
                 else:
                     raise Exception("Could not register new experiment")
 
@@ -246,26 +230,23 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         logger.info("Experiment %s registered", request.name)
         return director_pb2.SetNewExperimentResponse(status=is_accepted)
 
-    async def GetEnvoys(self, request, context):
-        """Get a status information about envoys.
+    def EnvoyConnectionRequest(self, request, context):
+        """Handles a connection request from an Envoy.
+
+        Args:
+            request (director_pb2.ConnectEnvoyRequest): The request from
+                the envoy
+            context (grpc.ServicerContext): The context of the request.
 
         Returns:
-            envoy_list: list of envoys
+            director_pb2.RequestAccepted: Indicating if connection was accepted
         """
-        envoys = self.director.get_envoys()
-        envoy_list = director_pb2.GetEnvoysResponse()
-        envoy_list.columns.extend(envoys)
+        logger.info(f"Envoy {request.envoy_name} is attempting to connect")
+        is_accepted = self.director.ack_envoy_connection_request(request.envoy_name)
+        if is_accepted:
+            logger.info(f"Envoy {request.envoy_name} is connected")
 
-        return envoy_list
-
-    async def GetFlowStatus(self, request, context):
-        """Gets Flow status
-
-        Returns:
-            status: flow status
-        """
-        status, flspec_obj = await self.director.get_flow_status()
-        return director_pb2.GetFlowStatusResponse(completed=status, flspec_obj=flspec_obj)
+        return director_pb2.RequestAccepted(accepted=is_accepted)
 
     async def UpdateEnvoyStatus(self, request, context):
         """Accept health check from envoy.
@@ -293,3 +274,34 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             resp.health_check_period.seconds = health_check_period
 
             return resp
+
+    async def GetEnvoys(self, request, context):
+        """Get status of connected envoys.
+
+        Args:
+            request (director_pb2.GetEnvoysRequest): The request from
+                the envoy.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            envoy_list: list of envoys
+        """
+        envoys = self.director.get_envoys()
+        envoy_list = director_pb2.GetEnvoysResponse()
+        envoy_list.columns.extend(envoys)
+
+        return envoy_list
+
+    async def GetFlowStatus(self, request, context):
+        """Get updated flow after experiment is finished.
+
+        Args:
+            request (director_pb2.GetFlowStatusRequest): The request from
+                the experiment manager
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            status: flow status
+        """
+        status, flspec_obj = await self.director.get_flow_status()
+        return director_pb2.GetFlowStatusResponse(completed=status, flspec_obj=flspec_obj)
