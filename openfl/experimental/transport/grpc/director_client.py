@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+from datetime import datetime
 
 import grpc
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class DirectorClient:
-    """Director client class for users.
+    """Director client class for experiment managers/envoys.
 
     This class communicates with the director to manage the user's
     participation in the federation.
@@ -189,10 +190,24 @@ class DirectorClient:
         """Get envoys info.
 
         Returns:
-            envoys = List of envoys
+            result Dict[str, Dict[str, Any]]]): The envoys info.
         """
         envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
-        return envoys.columns
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        result = {}
+        for envoy in envoys.envoy_infos:
+            result[envoy.envoy_name] = {
+                "name": envoy.envoy_name,
+                "is_online": envoy.is_online or False,
+                "is_experiment_running": envoy.is_experiment_running or False,
+                "last_updated": datetime.fromtimestamp(envoy.last_updated.seconds).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                "current_time": now,
+                "valid_duration": envoy.valid_duration,
+                "experiment_name": "ExperimentName Mock",
+            }
+        return result
 
     def get_flow_status(self):
         """

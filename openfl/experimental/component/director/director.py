@@ -89,7 +89,7 @@ class Director:
             try:
                 async with self.experiments_registry.get_next_experiment() as experiment:
                     # Wait until the authorized envoys are connected
-                    while sorted(self.authorized_cols) != sorted(self.get_envoys()):
+                    while sorted(self.authorized_cols) != sorted(list(self.get_envoys().keys())):
                         logger.info(
                             f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
                         )
@@ -206,6 +206,7 @@ class Director:
                 has been successfully acknowledged.
         """
         self._envoy_registry[envoy_name] = {
+            "name": envoy_name,
             "is_online": True,
             "is_experiment_running": False,
             "last_updated": time.time(),
@@ -215,14 +216,21 @@ class Director:
         # Future logic might change this to handle conditions.
         return True
 
-    def get_envoys(self):
+    def get_envoys(self) -> list:
         """Gets list of connected envoys
 
         Returns:
-            envoys: list of connected envoys
+            dict: Dictionary with the status information about envoys.
         """
-        envoys = list(self._envoy_registry.keys())
-        return envoys
+        logger.debug("Envoy registry: %s", self._envoy_registry)
+        for envoy in self._envoy_registry.values():
+            envoy["is_online"] = time.time() < envoy.get("last_updated", 0) + envoy.get(
+                "valid_duration", 0
+            )
+            envoy_name = envoy["name"]
+            envoy["experiment_name"] = self.col_exp.get(envoy_name, "None")
+
+        return self._envoy_registry
 
     def update_envoy_status(
         self,

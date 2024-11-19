@@ -3,6 +3,7 @@
 
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
 service Director {
@@ -74,10 +75,19 @@ message SetNewExperimentResponse {
     bool status = 1;
 }
 
+message EnvoyInfo {
+    string envoy_name = 1;
+    bool is_online = 2;
+    bool is_experiment_running = 3;
+    google.protobuf.Timestamp last_updated = 4;
+    google.protobuf.Duration valid_duration = 5;
+    string experiment_name = 6;
+}
+
 message GetEnvoysRequest {}
 
 message GetEnvoysResponse {
-    repeated string columns = 1;
+    repeated EnvoyInfo envoy_infos = 1;
 }
 
 message GetFlowStatusRequest {}

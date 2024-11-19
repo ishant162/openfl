@@ -284,13 +284,22 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             context (grpc.ServicerContext): The context of the request.
 
         Returns:
-            envoy_list: list of envoys
+            director_pb2.GetEnvoysResponse: The response to the request.
         """
-        envoys = self.director.get_envoys()
-        envoy_list = director_pb2.GetEnvoysResponse()
-        envoy_list.columns.extend(envoys)
+        envoy_infos = self.director.get_envoys()
+        envoy_statuses = []
+        for envoy_name, envoy_info in envoy_infos.items():
+            envoy_info_message = director_pb2.EnvoyInfo(
+                envoy_name=envoy_name,
+                is_online=envoy_info["is_online"],
+                is_experiment_running=envoy_info["is_experiment_running"],
+            )
+            envoy_info_message.valid_duration.seconds = envoy_info["valid_duration"]
+            envoy_info_message.last_updated.seconds = int(envoy_info["last_updated"])
 
-        return envoy_list
+            envoy_statuses.append(envoy_info_message)
+
+        return director_pb2.GetEnvoysResponse(envoy_infos=envoy_statuses)
 
     async def GetFlowStatus(self, request, context):
         """Get updated flow after experiment is finished.

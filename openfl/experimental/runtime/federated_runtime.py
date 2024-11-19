@@ -204,7 +204,7 @@ class FederatedRuntime(Runtime):
         """Gets Envoys
 
         Returns:
-            list: A list of envoys.
+            envoys: Dictionary containing envoy information.
         """
         envoys = self._dir_client.get_envoys()
         return envoys
