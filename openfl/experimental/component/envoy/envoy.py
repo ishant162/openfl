@@ -1,6 +1,8 @@
 # Copyright 2020-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+"""Envoy module."""
+
 import logging
 import sys
 import time
@@ -14,7 +16,7 @@ from openfl.experimental.transport.grpc.director_client import DirectorClient
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 from openfl.utilities.workspace import ExperimentWorkspace
 
-DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
+logger = logging.getLogger(__name__)
 
 
 class Envoy:
@@ -37,6 +39,8 @@ class Envoy:
         _health_check_future (object): The future object for the health check.
     """
 
+    DEFAULT_RETRY_TIMEOUT_IN_SECONDS = 5
+
     def __init__(
         self,
         *,
@@ -48,7 +52,7 @@ class Envoy:
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
-        install_requirements: bool = False,
+        install_requirements: bool = True,
     ) -> None:
         """Initialize a envoy object.
 
@@ -82,10 +86,10 @@ class Envoy:
             private_key=self.private_key,
             certificate=self.certificate,
         )
-        self.logger = logging.getLogger(__name__)
         self.is_experiment_running = False
         self.executor = ThreadPoolExecutor()
         self.plan = "plan/plan.yaml"
+        self._health_check_future = None
 
     def _fill_certs(self, root_certificate, private_key, certificate):
         """Fill certificates.
@@ -111,12 +115,12 @@ class Envoy:
         """Run of the envoy working cycle."""
         while True:
             try:
-                # Wait for experiment
+                # Wait for experiment from Director server
                 experiment_name = self.director_client.wait_experiment()
                 data_stream = self.director_client.get_experiment_data(experiment_name)
             except Exception as exc:
-                self.logger.exception("Failed to get experiment: %s", exc)
-                time.sleep(DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
+                logger.exception("Failed to get experiment: %s", exc)
+                time.sleep(self.DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
                 continue
             data_file_path = self._save_data_stream_to_file(data_stream)
 
@@ -126,11 +130,10 @@ class Envoy:
                     data_file_path=data_file_path,
                     install_requirements=self.install_requirements,
                 ):
-                    # TODO: Implement review_plan_callback
                     self.is_experiment_running = True
                     self._run_collaborator()
             except Exception as exc:
-                self.logger.exception("Collaborator failed with error: %s:", exc)
+                logger.exception("Collaborator failed with error: %s:", exc)
             finally:
                 self.is_experiment_running = False
 
@@ -155,8 +158,8 @@ class Envoy:
 
     def send_health_check(self):
         """Send health check to the director."""
-        self.logger.debug("Sending envoy node status to director.")
-        timeout = DEFAULT_RETRY_TIMEOUT_IN_SECONDS
+        logger.debug("Sending envoy node status to director.")
+        timeout = self.DEFAULT_RETRY_TIMEOUT_IN_SECONDS
         while True:
             try:
                 timeout = self.director_client.send_health_check(
@@ -164,8 +167,8 @@ class Envoy:
                     is_experiment_running=self.is_experiment_running,
                 )
             except EnvoyNotFoundError:
-                self.logger.info(
-                    "The director has lost information about current envoy. Resending..."
+                logger.info(
+                    "The director has lost information about current envoy. Reconnecting..."
                 )
                 self.director_client.connect_envoy(envoy_name=self.name)
             time.sleep(timeout)
@@ -173,7 +176,7 @@ class Envoy:
     def _run_collaborator(self) -> None:
         """Run the collaborator for the experiment running."""
         plan = Plan.parse(plan_config_path=Path(self.plan))
-        self.logger.info("🧿 Starting the Collaborator Service.")
+        logger.info("🧿 Starting the Collaborator Service.")
 
         col = plan.get_collaborator(
             self.name,
@@ -190,14 +193,14 @@ class Envoy:
         try:
             is_accepted = self.director_client.connect_envoy(envoy_name=self.name)
         except Exception as exc:
-            self.logger.exception("Failed to connect envoy: %s", exc)
+            logger.exception("Failed to connect envoy: %s", exc)
             sys.exit(1)
         else:
             if is_accepted:
-                self.logger.info(f"{self.name} is connected to the director")
+                logger.info(f"{self.name} is connected to the director")
                 self._health_check_future = self.executor.submit(self.send_health_check)
                 self.run()
             else:
                 # Connection failed
-                self.logger.error(f"{self.name} failed to connect to the director")
+                logger.error(f"{self.name} failed to connect to the director")
                 sys.exit(1)

@@ -3,7 +3,6 @@
 """Envoy CLI."""
 
 import logging
-import shutil
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ from click import group, option, pass_context
 from dynaconf import Validator
 
 from openfl.experimental.component.envoy import Envoy
-from openfl.experimental.interface.cli.cli_helper import WORKSPACE
 from openfl.utilities import click_types, merge_configs
 from openfl.utilities.path_check import is_directory_traversal
 
@@ -23,7 +21,11 @@ logger = logging.getLogger(__name__)
 @group()
 @pass_context
 def envoy(context):
-    """Manage Federated Learning Envoy."""
+    """Manage Federated Learning Envoy.
+
+    Args:
+        context (click.core.Context): Click context.
+    """
     context.obj["group"] = "envoy"
 
 
@@ -90,7 +92,18 @@ def start_(
     private_key,
     certificate,
 ):
-    """Start the Envoy."""
+    """Start the Envoy.
+
+    Args:
+        envoy_name (str): Name of the Envoy.
+        director_host (str): The FQDN of the federation director.
+        director_port (int): The federation director port.
+        tls (bool): Use TLS or not.
+        envoy_config_path (str): The envoy config path.
+        root_certificate (str): Path to a root CA cert.
+        private_key (str): Path to a private key.
+        certificate (str): Path to a signed certificate.
+    """
 
     logger.info("🧿 Starting the Envoy.")
     if is_directory_traversal(envoy_config_path):
@@ -106,9 +119,15 @@ def start_(
         },
         validators=[
             Validator("params.install_requirements", default=True),
-            Validator("params.review_experiment", default=False),
         ],
     )
+
+    # Parse envoy parameters
+    envoy_params = config.get("params", {})
+    if envoy_params:
+        install_requirements = envoy_params["install_requirements"]
+    else:
+        install_requirements = False
 
     if config.root_certificate:
         config.root_certificate = Path(config.root_certificate).absolute()
@@ -122,32 +141,11 @@ def start_(
         director_host=director_host,
         director_port=director_port,
         envoy_config=Path(envoy_config_path).absolute(),
-        tls=tls,
         root_certificate=config.root_certificate,
         private_key=config.private_key,
         certificate=config.certificate,
+        tls=tls,
+        install_requirements=install_requirements,
     )
 
     envoy.start()
-
-
-@envoy.command(name="create-workspace")
-@option("-p", "--envoy-path", required=True, help="The Envoy path", type=ClickPath())
-def create(envoy_path):
-    """Create an envoy workspace."""
-    if is_directory_traversal(envoy_path):
-        click.echo("The Envoy path is out of the openfl workspace scope.")
-        sys.exit(1)
-    envoy_path = Path(envoy_path).absolute()
-    if envoy_path.exists():
-        if not click.confirm("Envoy workspace already exists. Recreate?", default=True):
-            sys.exit(1)
-        shutil.rmtree(envoy_path)
-    (envoy_path / "cert").mkdir(parents=True, exist_ok=True)
-    (envoy_path / "logs").mkdir(parents=True, exist_ok=True)
-    (envoy_path / "data").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(
-        WORKSPACE / "default/envoy_config.yaml",
-        envoy_path / "envoy_config.yaml",
-    )
-    shutil.copyfile(WORKSPACE / "default/requirements.txt", envoy_path / "requirements.txt")
