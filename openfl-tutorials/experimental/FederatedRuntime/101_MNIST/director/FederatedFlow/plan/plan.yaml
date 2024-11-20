@@ -1,0 +1,18 @@
+aggregator:
+  defaults: plan/defaults/aggregator.yaml
+  settings:
+    rounds_to_train: 1
+  template: openfl.experimental.component.Aggregator
+collaborator:
+  defaults: plan/defaults/collaborator.yaml
+  settings: {}
+  template: openfl.experimental.component.Collaborator
+federated_flow:
+  settings:
+    checkpoint: false
+    model: null
+    optimizer: null
+    rounds: 1
+  template: src.experiment.FederatedFlow
+network:
+  defaults: plan/defaults/network.yaml
