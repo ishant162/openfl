@@ -183,15 +183,15 @@ class FederatedRuntime(Runtime):
 
         return response
 
-    def get_flow_status(self) -> Tuple[bool, Any]:
+    def get_flow_state(self) -> Tuple[bool, Any]:
         """
-        Retrieve the current flow status and deserialized flow object.
+        Retrieve the updated flow status and deserialized flow object.
 
         Returns:
             status (bool): The flow status.
             flow_object: The deserialized flow object.
         """
-        status, flspec_obj = self._dir_client.get_flow_status()
+        status, flspec_obj = self._dir_client.get_flow_state()
 
         # Append generated workspace path to sys.path
         # to allow unpickling of flspec_obj

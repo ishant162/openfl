@@ -17,7 +17,7 @@ service Director {
     //Runtime RPCs
     rpc SetNewExperiment(stream ExperimentInfo) returns (SetNewExperimentResponse) {}
     rpc GetEnvoys(GetEnvoysRequest) returns (GetEnvoysResponse) {}
-    rpc GetFlowStatus(GetFlowStatusRequest) returns (GetFlowStatusResponse) {}
+    rpc GetFlowState(GetFlowStateRequest) returns (GetFlowStateResponse) {}
     rpc ConnectRuntime(SendRuntimeRequest) returns (RuntimeRequestResponse) {}
 }
 
@@ -77,11 +77,11 @@ message SetNewExperimentResponse {
 
 message EnvoyInfo {
     string envoy_name = 1;
-    bool is_online = 2;
-    bool is_experiment_running = 3;
-    google.protobuf.Timestamp last_updated = 4;
-    google.protobuf.Duration valid_duration = 5;
-    string experiment_name = 6;
+    string experiment_name = 2;
+    bool is_online = 3;
+    bool is_experiment_running = 4;
+    google.protobuf.Timestamp last_updated = 5;
+    google.protobuf.Duration valid_duration = 6;
 }
 
 message GetEnvoysRequest {}
@@ -90,9 +90,9 @@ message GetEnvoysResponse {
     repeated EnvoyInfo envoy_infos = 1;
 }
 
-message GetFlowStatusRequest {}
+message GetFlowStateRequest {}
 
-message GetFlowStatusResponse {
+message GetFlowStateResponse {
     bool completed = 1;
     bytes flspec_obj = 2;
 }

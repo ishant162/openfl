@@ -113,7 +113,7 @@ class Director:
             except Exception as e:
                 raise Exception(f"Error while executing experiment: {e}")
 
-    async def get_flow_status(self) -> Tuple[bool, bytes]:
+    async def get_flow_state(self) -> Tuple[bool, bytes]:
         """Wait until the experiment flow status indicates completion
         and return the status along with a serialized FLSpec object.
 
@@ -131,7 +131,7 @@ class Director:
         return status, pickle.dumps(flspec_obj)
 
     async def wait_experiment(self, envoy_name: str) -> str:
-        """Wait an experiment.
+        """Waits for an experiment to be ready for a given envoy.
 
         Args:
             envoy_name (str): The name of the envoy.
@@ -177,7 +177,6 @@ class Director:
             collaborators=collaborator_names,
             users=[sender_name],
             sender=sender_name,
-            plan_path="plan/plan.yaml",
         )
 
         self.authorized_cols = collaborator_names

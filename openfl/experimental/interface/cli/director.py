@@ -3,7 +3,6 @@
 """Director CLI."""
 
 import logging
-import shutil
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ from click import group, option, pass_context
 from dynaconf import Validator
 
 from openfl.experimental.component.director import Director
-from openfl.experimental.interface.cli.cli_helper import WORKSPACE
 from openfl.experimental.transport import DirectorGRPCServer
 from openfl.utilities import merge_configs
 from openfl.utilities.path_check import is_directory_traversal
@@ -24,7 +22,11 @@ logger = logging.getLogger(__name__)
 @group()
 @pass_context
 def director(context):
-    """Manage Federated Learning Director."""
+    """Manage Federated Learning Director.
+
+    Args:
+        context (click.core.Context): Click context.
+    """
     context.obj["group"] = "director"
 
 
@@ -70,7 +72,15 @@ def director(context):
     help="Path to a signed certificate",
 )
 def start(director_config_path, tls, root_certificate, private_key, certificate):
-    """Start the director service."""
+    """Start the director service.
+
+    Args:
+        director_config_path (str): The director config file path.
+        tls (bool): Use TLS or not.
+        root_certificate (str): Path to a root CA cert.
+        private_key (str): Path to a private key.
+        certificate (str): Path to a signed certificate.
+    """
 
     director_config_path = Path(director_config_path).absolute()
     logger.info("🧿 Starting the Director Service.")
@@ -119,26 +129,3 @@ def start(director_config_path, tls, root_certificate, private_key, certificate)
         director_config=director_config_path,
     )
     director_server.start()
-
-
-@director.command(name="create-workspace")
-@option(
-    "-p",
-    "--director-path",
-    required=True,
-    help="The director path",
-    type=ClickPath(),
-)
-def create(director_path):
-    """Create a director workspace."""
-    if is_directory_traversal(director_path):
-        click.echo("The director path is out of the openfl workspace scope.")
-        sys.exit(1)
-    director_path = Path(director_path).absolute()
-    if director_path.exists():
-        if not click.confirm("Director workspace already exists. Recreate?", default=True):
-            sys.exit(1)
-        shutil.rmtree(director_path)
-    (director_path / "cert").mkdir(parents=True, exist_ok=True)
-    (director_path / "logs").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(WORKSPACE / "default/director.yaml", director_path / "director.yaml")

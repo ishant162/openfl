@@ -91,7 +91,7 @@ class DirectorClient:
 
     def wait_experiment(self):
         """
-        Wait an experiment data from the director.
+        Waits for experiment data from the director.
 
         Returns:
             experiment_name (str): The name of the experiment.
@@ -205,18 +205,21 @@ class DirectorClient:
                 ),
                 "current_time": now,
                 "valid_duration": envoy.valid_duration,
-                "experiment_name": "ExperimentName Mock",
+                "experiment_name": envoy.experiment_name,
             }
         return result
 
-    def get_flow_status(self):
+    def get_flow_state(self):
         """
-        Gets status of the flow
+        Gets updated state of the flow
 
         Returns:
-            status = flow status
+            tuple: A tuple containing:
+                - completed (bool): Indicates whether the flow has completed.
+                - flspec_obj (object): The FLSpec object containing
+                    details of the updated flow state.
         """
-        response = self.stub.GetFlowStatus(director_pb2.GetFlowStatusRequest())
+        response = self.stub.GetFlowState(director_pb2.GetFlowStateRequest())
 
         return response.completed, response.flspec_obj
 

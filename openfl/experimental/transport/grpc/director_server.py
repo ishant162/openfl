@@ -97,7 +97,15 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         )
 
     def _fill_certs(self, root_certificate, private_key, certificate):
-        """Fill certificates."""
+        """Fill certificates.
+        Args:
+            root_certificate (Union[Path, str]): The path to the root
+                certificate for the TLS connection.
+            private_key (Union[Path, str]): The path to the server's private
+                key for the TLS connection.
+            certificate (Union[Path, str]): The path to the server's
+                certificate for the TLS connection.
+        """
         if self.tls:
             if not (root_certificate and private_key and certificate):
                 raise Exception("No certificates provided")
@@ -176,7 +184,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                 yield director_pb2.ExperimentData(size=len(data), exp_data=data)
 
     async def WaitExperiment(self, request, context):
-        """Request for wait an experiment.
+        """Handles a request to wait for an experiment to be ready.
 
         Args:
             request (director_pb2.WaitExperimentRequest): The request from the
@@ -293,6 +301,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                 envoy_name=envoy_name,
                 is_online=envoy_info["is_online"],
                 is_experiment_running=envoy_info["is_experiment_running"],
+                experiment_name=envoy_info["experiment_name"],
             )
             envoy_info_message.valid_duration.seconds = envoy_info["valid_duration"]
             envoy_info_message.last_updated.seconds = int(envoy_info["last_updated"])
@@ -301,7 +310,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.GetEnvoysResponse(envoy_infos=envoy_statuses)
 
-    async def GetFlowStatus(self, request, context):
+    async def GetFlowState(self, request, context):
         """Get updated flow after experiment is finished.
 
         Args:
@@ -310,7 +319,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             context (grpc.ServicerContext): The context of the request.
 
         Returns:
-            status: flow status
+            director_pb2.GetFlowStateResponse: The response to the request.
         """
-        status, flspec_obj = await self.director.get_flow_status()
-        return director_pb2.GetFlowStatusResponse(completed=status, flspec_obj=flspec_obj)
+        status, flspec_obj = await self.director.get_flow_state()
+        return director_pb2.GetFlowStateResponse(completed=status, flspec_obj=flspec_obj)

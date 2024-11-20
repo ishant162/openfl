@@ -115,7 +115,7 @@ class FLSpec:
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
                 self.submit_workspace(archive_path, exp_name)
                 # Retrieve the flspec object to update the experiment state
-                flspec_obj = self.flow_status()
+                flspec_obj = self.get_flow_state()
 
                 # Update self with artifacts from the generated flspec object
                 artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
@@ -168,15 +168,15 @@ class FLSpec:
         else:
             print("Experiment could not be submitted to the director.")
 
-    def flow_status(self) -> FLSpec:
+    def get_flow_state(self) -> FLSpec:
         """
-        Get updated flow status.
+        Gets the updated flow state.
 
         Returns:
             flspec_obj: An updated FLSpec instance if the experiment runs successfully.
                         None if the experiment could not run.
         """
-        status, flspec_obj = self.runtime.get_flow_status()
+        status, flspec_obj = self.runtime.get_flow_state()
         if status:
             print("Experiment ran successfully")
             return flspec_obj
