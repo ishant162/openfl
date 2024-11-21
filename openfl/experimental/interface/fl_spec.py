@@ -113,7 +113,7 @@ class FLSpec:
             try:
                 # Prepare workspace and submit it for the FederatedRuntime
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
-                self.submit_workspace(archive_path, exp_name)
+                self.submit_experiment(archive_path, exp_name)
                 # Retrieve the flspec object to update the experiment state
                 flspec_obj = self.get_flow_state()
 
@@ -126,7 +126,9 @@ class FLSpec:
                 self._foreach_methods = flspec_obj._foreach_methods
                 self.execute_task_args = flspec_obj.execute_task_args
             except Exception as e:
-                raise Exception(f"Failed to run experiment: {e}") from e
+                raise Exception(
+                    f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
+                )
         else:
             raise Exception("Runtime not implemented")
 
@@ -153,15 +155,15 @@ class FLSpec:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
         self._runtime = runtime
 
-    def submit_workspace(self, archive_path: str, exp_name: str) -> None:
+    def submit_experiment(self, archive_path: str, exp_name: str) -> None:
         """
-        Submits workspace archive to the director using runtime.
+        Submits experiment archive to the director using runtime.
 
         Args:
             archive_path (str): Archive file path containing the workspace.
             exp_name (str): The name of the experiment to be submitted.
         """
-        response = self.runtime.submit_workspace(archive_path, exp_name)
+        response = self.runtime.submit_experiment(archive_path, exp_name)
 
         if response.status:
             print("Experiment was submitted to the director!")
@@ -184,7 +186,7 @@ class FLSpec:
             print("Experiment could not run")
             return None
 
-    def _capture_instance_snapshot(self, kwargs):
+    def _capture_instance_snapshot(self, kwargs) -> List:
         """Takes backup of self before exclude or include filtering.
 
         Args:
@@ -236,7 +238,7 @@ class FLSpec:
         elif collaborator_to_aggregator(f, parent_func):
             print("Sending state from collaborator to aggregator")
 
-    def filter_exclude_include(self, f, **kwargs):
+    def filter_exclude_include(self, f, **kwargs) -> None:
         """Filters exclude/include attributes for a given task within the flow.
 
         Args:
@@ -266,7 +268,7 @@ class FLSpec:
                 setattr(clone, name, deepcopy(attr))
             clone._foreach_methods = self._foreach_methods
 
-    def restore_instance_snapshot(self, ctx: FLSpec, instance_snapshot: List[FLSpec]):
+    def restore_instance_snapshot(self, ctx: FLSpec, instance_snapshot: List[FLSpec]) -> None:
         """Restores attributes from backup (in instance snapshot) to ctx.
 
         Args:
@@ -280,7 +282,7 @@ class FLSpec:
                 if not hasattr(ctx, name):
                     setattr(ctx, name, attr)
 
-    def next(self, f, **kwargs):
+    def next(self, f, **kwargs) -> None:
         """Specifies the next task in the flow to execute.
 
         Args:

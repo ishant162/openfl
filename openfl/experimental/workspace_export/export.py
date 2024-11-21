@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""Workspace Builder module."""
+"""Workspace Export module."""
 import ast
 import importlib
 import inspect
@@ -12,6 +12,7 @@ import sys
 from logging import getLogger
 from pathlib import Path
 from shutil import copytree
+from typing import Tuple
 
 import astor
 import nbformat
@@ -238,30 +239,33 @@ class WorkspaceExport:
             yaml.safe_dump(data, y)
 
     @classmethod
-    def export(
-        cls, notebook_path: str, output_workspace: str, federated_runtime: bool = False
-    ) -> None:
-        """Exports workspace to `output_dir`.
+    def export_federated(cls, notebook_path: str, output_workspace: str) -> Tuple[str, str, str]:
+        """Exports workspace for FederatedRuntime.
 
         Args:
-            notebook_path: Jupyter notebook path.
-            output_dir: Path for generated workspace directory.
-            federated_runtime: Flag to check if called from federated_runtime
-            template_workspace_path: Path to template workspace provided with
-                OpenFL (default="/tmp").
+            notebook_path (str): Path to the Jupyter notebook.
+            output_workspace (str): Path for the generated workspace directory.
 
         Returns:
-            arch_path: Path to generated archive
-            or
-            None
+            Tuple[str, str, str]: A tuple containing:
+                (generated_workspace_path, archive_path, flow_class_name).
         """
         instance = cls(notebook_path, output_workspace)
         instance.generate_requirements()
         instance.generate_plan_yaml()
+        return instance.generate_experiment_archive()
 
-        if federated_runtime:
-            gen_workspace_path, arch_path, flow_class_name = instance.generate_experiment_archive()
-            return gen_workspace_path, arch_path, flow_class_name
+    @classmethod
+    def export_agg_based_workflow(cls, notebook_path: str, output_workspace: str) -> None:
+        """Exports workspace for Aggregator based workflow.
+
+        Args:
+            notebook_path (str): Path to the Jupyter notebook.
+            output_workspace (str): Path for the generated workspace directory.
+        """
+        instance = cls(notebook_path, output_workspace)
+        instance.generate_requirements()
+        instance.generate_plan_yaml()
         instance.generate_data_yaml()
 
     def generate_experiment_archive(self):
@@ -269,7 +273,8 @@ class WorkspaceExport:
         Create archive of the generated workspace
 
         Returns:
-            None
+            Tuple[str, str, str]: A tuple containing:
+                (generated_workspace_path, archive_path, flow_class_name).
         """
         parent_directory = self.output_workspace_path.parent
         archive_path = parent_directory / "experiment"

@@ -122,13 +122,12 @@ class Experiment:
                     director_config=director_config,
                 )
                 self.aggregator = aggregator_grpc_server.aggregator
-                results = await asyncio.gather(
+                _, self.updated_flow = await asyncio.gather(
                     self._run_aggregator_grpc_server(
                         aggregator_grpc_server=aggregator_grpc_server,
                     ),
                     self.aggregator.run_flow(),
                 )
-            self.updated_flow = results[1]
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
@@ -213,23 +212,40 @@ class ExperimentsRegistry:
 
     @property
     def active_experiment(self) -> Union[Experiment, None]:
-        """Get active experiment."""
+        """Get active experiment.
+
+        Returns:
+            Union[Experiment, None]: The active experiment if exists, None
+                otherwise.
+        """
         if self.__active_experiment_name is None:
             return None
         return self.__dict[self.__active_experiment_name]
 
     @property
     def pending_experiments(self) -> List[str]:
-        """Get queue of not started experiments."""
+        """Get queue of not started experiments.
+
+        Returns:
+            List[str]: The list of pending experiments.
+        """
         return self.__pending_experiments
 
     def add(self, experiment: Experiment) -> None:
-        """Add experiment to queue of not started experiments."""
+        """Add experiment to queue of not started experiments.
+
+        Args:
+           experiment (Experiment): The experiment to add.
+        """
         self.__dict[experiment.name] = experiment
         self.__pending_experiments.append(experiment.name)
 
     def remove(self, name: str) -> None:
-        """Remove experiment from everywhere."""
+        """Remove experiment from everywhere.
+
+        Args:
+            name (str): The name of the experiment to remove.
+        """
         if self.__active_experiment_name == name:
             self.__active_experiment_name = None
         if name in self.__pending_experiments:
@@ -240,19 +256,50 @@ class ExperimentsRegistry:
             del self.__dict[name]
 
     def __getitem__(self, key: str) -> Experiment:
-        """Get experiment by name."""
+        """Get experiment by name.
+
+        Args:
+            key (str): The name of the experiment.
+
+        Returns:
+            Experiment: The experiment with the given name.
+        """
         return self.__dict[key]
 
     def get(self, key: str, default=None) -> Experiment:
-        """Get experiment by name."""
+        """Get experiment by name.
+
+        Args:
+            key (str): The name of the experiment.
+            default (optional): The default value to return if the experiment
+                does not exist.
+
+        Returns:
+            Experiment: The experiment with the given name, or the default
+                value if the experiment does not exist.
+        """
         return self.__dict.get(key, default)
 
     def get_user_experiments(self, user: str) -> List[Experiment]:
-        """Get list of experiments for specific user."""
+        """Get list of experiments for specific user.
+
+        Args:
+            user (str): The name of the user.
+
+        Returns:
+            List[Experiment]: The list of experiments for the specific user.
+        """
         return [exp for exp in self.__dict.values() if user in exp.users]
 
     def __contains__(self, key: str) -> bool:
-        """Check if experiment exists."""
+        """Check if experiment exists.
+
+        Args:
+            key (str): The name of the experiment.
+
+        Returns:
+            bool: True if the experiment exists, False otherwise.
+        """
         return key in self.__dict
 
     def finish_active(self) -> None:
@@ -264,8 +311,8 @@ class ExperimentsRegistry:
     async def get_next_experiment(self):
         """Context manager.
 
-        On enter get experiment from pending_experiments.
-        On exit put finished experiment to archive_experiments.
+        On enter get experiment from pending_experiments. On exit put finished
+        experiment to archive_experiments.
         """
         while True:
             if self.active_experiment is None and self.pending_experiments:

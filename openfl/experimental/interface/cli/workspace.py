@@ -138,7 +138,7 @@ def create_(prefix, custom_template, template, notebook, template_output_dir):
                 + "save your Jupyter Notebook workspace."
             )
 
-        WorkspaceExport.export(
+        WorkspaceExport.export_agg_based_workflow(
             notebook_path=notebook,
             output_workspace=template_output_dir,
         )

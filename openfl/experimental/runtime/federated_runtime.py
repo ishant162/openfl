@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-""" openfl.experimental.runtime package LocalRuntime class."""
+""" openfl.experimental.runtime package FederatedRuntime class."""
 
 from __future__ import annotations
 
@@ -11,26 +11,19 @@ import os
 import pickle
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any, Dict, List, Tuple
 
 from openfl.experimental.runtime.runtime import Runtime
 from openfl.experimental.transport.grpc.director_client import DirectorClient
 from openfl.experimental.workspace_export import WorkspaceExport
 
-if TYPE_CHECKING:
-    from openfl.experimental.interface import Aggregator
-    from openfl.experimental.interface import Collaborator
-
-from typing import Any, Dict, List, Tuple, Type
-
 logger = logging.getLogger(__name__)
 
 
 class FederatedRuntime(Runtime):
-    """Class for a federated runtime, derived from the Runtime class.
+    """FederatedRuntime class, derived from Runtime class.
 
     Attributes:
-        aggregator (str): The aggregator participant.
         collaborators (list): List of Authorized collaborators
         notebook_path : Path to the Jupyter notebook
         tls (bool): A flag indicating if TLS should be used for
@@ -45,13 +38,10 @@ class FederatedRuntime(Runtime):
         aggregator: str = None,
         collaborators: List[str] = None,
         director: Dict = None,
-        notebook_path=None,
+        notebook_path: str = None,
         tls: bool = False,
-        **kwargs,
     ) -> None:
         """Initializes the FederatedRuntime object.
-
-        Use single node to run the flow.
 
         Args:
             aggregator (str): Name of the aggregator. Defaults to
@@ -61,7 +51,6 @@ class FederatedRuntime(Runtime):
             director (Dict): Director information. Defaults to None
             notebook_path (str): Jupyter notebook path
             tls (bool): Whether to use TLS for the connection.
-            **kwargs: Additional keyword arguments.
         """
         super().__init__()
         if aggregator is not None:
@@ -97,11 +86,11 @@ class FederatedRuntime(Runtime):
         return self._aggregator
 
     @aggregator.setter
-    def aggregator(self, aggregator_name: Type[Aggregator]):
+    def aggregator(self, aggregator_name: str):
         """Set LocalRuntime _aggregator.
 
         Args:
-            aggregator_name (Type[Aggregator]): The name of the aggregator to
+            aggregator_name (str): The name of the aggregator to
                 set.
         """
         self._aggregator = aggregator_name
@@ -118,20 +107,29 @@ class FederatedRuntime(Runtime):
         return self.__collaborators
 
     @collaborators.setter
-    def collaborators(self, collaborators: List[Type[Collaborator]]):
+    def collaborators(self, collaborators: List[str]):
         """Set LocalRuntime collaborators.
 
         Args:
-            collaborators (List[Type[Collaborator]]): The list of
+            collaborators (List[str]): The list of
                 collaborators to set.
         """
         self.__collaborators = collaborators
 
-    def _fill_certs(self, root_certificate, private_key, certificate):
-        """Fill certificates."""
+    def _fill_certs(self, root_certificate, private_key, certificate) -> None:
+        """Fill certificates.
+
+        Args:
+            root_certificate (Union[Path, str]): The path to the root
+                certificate for the TLS connection.
+            private_key (Union[Path, str]): The path to the server's private
+                key for the TLS connection.
+            certificate (Union[Path, str]): The path to the server's
+                certificate for the TLS connection.
+        """
         if self.tls:
             if not all([root_certificate, private_key, certificate]):
-                raise ValueError("No certificates provided")
+                raise ValueError("Incomplete certificates provided")
 
             self.root_certificate = Path(root_certificate).absolute()
             self.private_key = Path(private_key).absolute()
@@ -147,10 +145,9 @@ class FederatedRuntime(Runtime):
             Tuple[Path, str]: A tuple containing the path of the created
         archive and the experiment name.
         """
-        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export(
+        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export_federated(
             notebook_path=self.notebook_path,
             output_workspace="./generated_workspace",
-            federated_runtime=True,
         )
         return archive_path, exp_name
 
@@ -161,11 +158,12 @@ class FederatedRuntime(Runtime):
         Args:
             archive_path (str): Archive file path containing the workspace.
         """
-        os.remove(archive_path)
+        if os.path.exists(archive_path):
+            os.remove(archive_path)
 
-    def submit_workspace(self, archive_path, exp_name) -> int:
+    def submit_experiment(self, archive_path, exp_name) -> int:
         """
-        Submits workspace archive to the director
+        Submits experiment archive to the director
 
         Args:
             archive_path (str): Archive file path containing the workspace.
@@ -176,7 +174,7 @@ class FederatedRuntime(Runtime):
         """
         try:
             response = self._dir_client.set_new_experiment(
-                archive_path=archive_path, experiment_name=exp_name, col_names=self.collaborators
+                archive_path=archive_path, experiment_name=exp_name, col_names=self.__collaborators
             )
         finally:
             self.remove_workspace_archive(archive_path)
@@ -200,7 +198,7 @@ class FederatedRuntime(Runtime):
 
         return status, flow_object
 
-    def get_envoys(self):
+    def get_envoys(self) -> Dict[Any]:
         """Gets Envoys
 
         Returns:
@@ -210,4 +208,9 @@ class FederatedRuntime(Runtime):
         return envoys
 
     def __repr__(self):
+        """Returns the string representation of the FederatedRuntime object.
+
+        Returns:
+            str: The string representation of the FederatedRuntime object.
+        """
         return "FederatedRuntime"
