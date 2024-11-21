@@ -70,6 +70,8 @@ class Experiment:
         self.archive_path = Path(archive_path).absolute()
         self.collaborators = collaborators
         self.sender = sender
+        # This plan path ("plan/plan.yaml") originates from the 
+        # experiment workspace provided by the director
         self.plan_path = Path(plan_path)
         self.users = set() if users is None else set(users)
         self.status = Status.PENDING

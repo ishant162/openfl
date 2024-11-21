@@ -88,6 +88,8 @@ class Envoy:
         )
         self.is_experiment_running = False
         self.executor = ThreadPoolExecutor()
+        # This plan path ("plan/plan.yaml") originates from the 
+        # experiment workspace provided by the director
         self.plan = "plan/plan.yaml"
         self._health_check_future = None
 

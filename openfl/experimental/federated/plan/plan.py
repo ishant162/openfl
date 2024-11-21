@@ -6,7 +6,7 @@
 import inspect
 import os
 from hashlib import sha384
-from importlib import import_module
+from importlib import import_module, reload
 from logging import getLogger
 from os.path import splitext
 from pathlib import Path
@@ -183,12 +183,14 @@ class Plan:
         return instance
 
     @staticmethod
-    def import_(template):
+    def import_(template, reload_module=False):
         """Import an instance of a openfl Component or Federated
         DataLoader/TaskRunner.
 
         Args:
             template: Fully qualified object path
+            reload_module (bool): If True, forces re-import of the module.
+                Defaults to False.
 
         Returns:
             A Python object
@@ -201,6 +203,8 @@ class Plan:
             extra={"markup": True},
         )
         module = import_module(module_path)
+        if reload_module:
+            module = reload(module)
         instance = getattr(module, class_name)
 
         return instance
@@ -469,10 +473,12 @@ class Plan:
                     )["settings"]
 
                     if isinstance(private_attrs_callable, dict):
-                        private_attrs_callable = Plan.import_(**private_attrs_callable)
+                        private_attrs_callable = Plan.import_(
+                            **private_attrs_callable, reload_module=True
+                        )
                 elif private_attributes:
                     private_attributes = Plan.import_(
-                        d.get(private_attr_name)["private_attributes"]
+                        d.get(private_attr_name)["private_attributes"], reload_module=True
                     )
                 elif not callable(private_attrs_callable):
                     raise TypeError(
