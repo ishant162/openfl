@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class Director:
-    """Director class
+    """Director class for managing experiments and envoys.
 
     Attributes:
         tls (bool): A flag indicating if TLS should be used for connections.
@@ -88,12 +88,7 @@ class Director:
         while True:
             try:
                 async with self.experiments_registry.get_next_experiment() as experiment:
-                    # Wait until the authorized envoys are connected
-                    while sorted(self.authorized_cols) != sorted(list(self.get_envoys().keys())):
-                        logger.info(
-                            f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
-                        )
-                        await asyncio.sleep(10)
+                    await self._wait_for_authorized_envoys()
                     run_aggregator_future = loop.create_task(
                         experiment.start(
                             root_certificate=self.root_certificate,
@@ -111,7 +106,17 @@ class Director:
                     # Wait for the experiment to complete and save the result
                     self._flow_status = await run_aggregator_future
             except Exception as e:
-                raise Exception(f"Error while executing experiment: {e}")
+                logger.error(f"Error while executing experiment: {e}")
+                raise
+
+    async def _wait_for_authorized_envoys(self):
+        """Wait until the authorized envoys are connected"""
+
+        while set(self.authorized_cols) != set(self.get_envoys()):
+            logger.info(
+                f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
+            )
+            await asyncio.sleep(10)
 
     async def get_flow_state(self) -> Tuple[bool, bytes]:
         """Wait until the experiment flow status indicates completion
@@ -226,8 +231,7 @@ class Director:
             envoy["is_online"] = time.time() < envoy.get("last_updated", 0) + envoy.get(
                 "valid_duration", 0
             )
-            envoy_name = envoy["name"]
-            envoy["experiment_name"] = self.col_exp.get(envoy_name, "None")
+            envoy["experiment_name"] = self.col_exp.get(envoy["name"], "None")
 
         return self._envoy_registry
 
@@ -254,9 +258,13 @@ class Director:
         if not envoy_info:
             raise EnvoyNotFoundError(f"Unknown envoy {envoy_name}")
 
-        envoy_info["is_online"]: True
-        envoy_info["is_experiment_running"] = is_experiment_running
-        envoy_info["valid_duration"] = 2 * self.envoy_health_check_period
-        envoy_info["last_updated"] = time.time()
+        envoy_info.update(
+            {
+                "is_online": True,
+                "is_experiment_running": is_experiment_running,
+                "valid_duration": 2 * self.envoy_health_check_period,
+                "last_updated": time.time(),
+            }
+        )
 
         return self.envoy_health_check_period

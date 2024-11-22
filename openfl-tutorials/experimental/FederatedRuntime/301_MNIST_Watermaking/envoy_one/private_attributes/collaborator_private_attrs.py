@@ -6,8 +6,7 @@ from copy import deepcopy
 import torch
 import torchvision
 
-
-mnist_train = torchvision.datasets.MNIST(
+train_dataset = torchvision.datasets.MNIST(
     "./files/",
     train=True,
     download=True,
@@ -19,7 +18,7 @@ mnist_train = torchvision.datasets.MNIST(
     ),
 )
 
-mnist_test = torchvision.datasets.MNIST(
+test_dataset = torchvision.datasets.MNIST(
     "./files/",
     train=False,
     download=True,
@@ -32,22 +31,15 @@ mnist_test = torchvision.datasets.MNIST(
 )
 
 
-n_collaborators = 2
-batch_size = 32
+def collaborator_private_attrs(index, n_collaborators, batch_size, train_dataset, test_dataset):
+    train = deepcopy(train_dataset)
+    test = deepcopy(test_dataset)
+    train.data = train_dataset.data[index::n_collaborators]
+    train.targets = train_dataset.targets[index::n_collaborators]
+    test.data = test_dataset.data[index::n_collaborators]
+    test.targets = test_dataset.targets[index::n_collaborators]
 
-train = deepcopy(mnist_train)
-test = deepcopy(mnist_test)
-
-train.data = mnist_train.data[0::n_collaborators]
-train.targets = mnist_train.targets[0::n_collaborators]
-test.data = mnist_test.data[0::n_collaborators]
-test.targets = mnist_test.targets[0::n_collaborators]
-
-collaborator_private_attrs = {
-    "train_loader": torch.utils.data.DataLoader(
-        train, batch_size=batch_size, shuffle=True
-    ),
-    "test_loader": torch.utils.data.DataLoader(
-        test, batch_size=batch_size, shuffle=True
-    ),
-}
+    return {
+        "train_loader": torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True),
+        "test_loader": torch.utils.data.DataLoader(test, batch_size=batch_size, shuffle=True),
+    }

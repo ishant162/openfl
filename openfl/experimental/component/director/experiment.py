@@ -70,7 +70,7 @@ class Experiment:
         self.archive_path = Path(archive_path).absolute()
         self.collaborators = collaborators
         self.sender = sender
-        # This plan path ("plan/plan.yaml") originates from the 
+        # This plan path ("plan/plan.yaml") originates from the
         # experiment workspace provided by the director
         self.plan_path = Path(plan_path)
         self.users = set() if users is None else set(users)
@@ -109,7 +109,7 @@ class Experiment:
         """
         self.status = Status.IN_PROGRESS
         try:
-            logger.info(f"New experiment {self.name} for " f"collaborators {self.collaborators}")
+            logger.info(f"New experiment {self.name} for collaborators {self.collaborators}")
 
             with ExperimentWorkspace(
                 experiment_name=self.name,
@@ -126,7 +126,7 @@ class Experiment:
                 self.aggregator = aggregator_grpc_server.aggregator
                 _, self.updated_flow = await asyncio.gather(
                     self._run_aggregator_grpc_server(
-                        aggregator_grpc_server=aggregator_grpc_server,
+                        aggregator_grpc_server,
                     ),
                     self.aggregator.run_flow(),
                 )
@@ -134,7 +134,8 @@ class Experiment:
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
             self.status = Status.FAILED
-            raise Exception("Experiment %s failed with error: %s.", self.name, e)
+            logger.error("Experiment %s failed with error: %s.", self.name, e)
+            raise
 
         return [self.status == Status.FINISHED, self.updated_flow]
 
@@ -197,7 +198,7 @@ class Experiment:
                 await asyncio.sleep(10)
             logger.debug("Aggregator sent quit jobs calls to all collaborators")
         except KeyboardInterrupt:
-            pass
+            logger.info("Keyboard interrupt received. Stopping the server.")
         finally:
             grpc_server.stop(0)
 
@@ -206,7 +207,7 @@ class ExperimentsRegistry:
     """ExperimentsList class."""
 
     def __init__(self) -> None:
-        """Initialize an experiments list object."""
+        """Initialize an experiments registry object."""
         self.__active_experiment_name = None
         self.__pending_experiments = []
         self.__archived_experiments = []

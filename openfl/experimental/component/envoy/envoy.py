@@ -77,21 +77,33 @@ class Envoy:
         self.tls = tls
         self._fill_certs(root_certificate, private_key, certificate)
         self.install_requirements = install_requirements
-        self.director_client = DirectorClient(
+        self.director_client = self._create_director_client(director_host, director_port)
+        self.is_experiment_running = False
+        self.executor = ThreadPoolExecutor()
+        # This plan path ("plan/plan.yaml") originates from the
+        # experiment workspace provided by the director
+        self.plan = "plan/plan.yaml"
+        self._health_check_future = None
+
+    def _create_director_client(self, director_host: str, director_port: int) -> DirectorClient:
+        """Create a DirectorClient instance.
+
+        Args:
+            director_host (str): The host of the director.
+            director_port (int): The port of the director.
+
+        Returns:
+            DirectorClient: Instance of the client
+        """
+        return DirectorClient(
             director_host=director_host,
             director_port=director_port,
-            envoy_name=envoy_name,
+            envoy_name=self.name,
             tls=self.tls,
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
         )
-        self.is_experiment_running = False
-        self.executor = ThreadPoolExecutor()
-        # This plan path ("plan/plan.yaml") originates from the 
-        # experiment workspace provided by the director
-        self.plan = "plan/plan.yaml"
-        self._health_check_future = None
 
     def _fill_certs(self, root_certificate, private_key, certificate):
         """Fill certificates.
