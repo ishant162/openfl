@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Iterable, List, Union
+from typing import Any, Iterable, List, Optional, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -81,9 +81,9 @@ class Experiment:
         self,
         *,
         tls: bool = True,
-        root_certificate: Union[Path, str] = None,
-        private_key: Union[Path, str] = None,
-        certificate: Union[Path, str] = None,
+        root_certificate: Optional[Union[Path, str]] = None,
+        private_key: Optional[Union[Path, str]] = None,
+        certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
     ) -> List[Union[bool, Any]]:
@@ -92,11 +92,11 @@ class Experiment:
         Args:
             tls (bool, optional): A flag indicating if TLS should be used for
                 connections. Defaults to True.
-            root_certificate (Union[Path, str], optional): The path to the
+            root_certificate (Optional[Union[Path, str]], optional): The path to the
                 root certificate for TLS. Defaults to None.
-            private_key (Union[Path, str], optional): The path to the private
+            private_key (Optional[Union[Path, str]], optional): The path to the private
                 key for TLS. Defaults to None.
-            certificate (Union[Path, str], optional): The path to the
+            certificate (Optional[Union[Path, str]], optional): The path to the
                 certificate for TLS. Defaults to None.
             director_config (Path): Path to director's config file
             install_requirements (bool, optional): A flag indicating if the
@@ -143,9 +143,9 @@ class Experiment:
         self,
         *,
         tls: bool = True,
-        root_certificate: Union[Path, str] = None,
-        private_key: Union[Path, str] = None,
-        certificate: Union[Path, str] = None,
+        root_certificate: Optional[Union[Path, str]] = None,
+        private_key: Optional[Union[Path, str]] = None,
+        certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
     ) -> AggregatorGRPCServer:
         """Create an aggregator gRPC server.
@@ -153,11 +153,11 @@ class Experiment:
         Args:
             tls (bool, optional): A flag indicating if TLS should be used for
                 connections. Defaults to True.
-            root_certificate (Union[Path, str], optional): The path to the
+            root_certificate (Optional[Union[Path, str]]): The path to the
                 root certificate for TLS. Defaults to None.
-            private_key (Union[Path, str], optional): The path to the private
+            private_key (Optional[Union[Path, str]]): The path to the private
                 key for TLS. Defaults to None.
-            certificate (Union[Path, str], optional): The path to the
+            certificate (Optional[Union[Path, str]]): The path to the
                 certificate for TLS. Defaults to None.
             director_config (Path): Path to director's config file.
                 Defaults to None.

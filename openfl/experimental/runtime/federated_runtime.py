@@ -11,7 +11,7 @@ import os
 import pickle
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from openfl.experimental.runtime.runtime import Runtime
 from openfl.experimental.transport.grpc.director_client import DirectorClient
@@ -24,32 +24,34 @@ class FederatedRuntime(Runtime):
     """FederatedRuntime class, derived from Runtime class.
 
     Attributes:
-        collaborators (list): List of Authorized collaborators
-        notebook_path : Path to the Jupyter notebook
+        aggregator (Optional[str]): Name of the aggregator. Defaults to
+                None.
+        collaborators (Optional[List[str]]): List of Authorized collaborators
         tls (bool): A flag indicating if TLS should be used for
             connections. Defaults to False.
-        director (dict): Dictionary containing director info.
+        director (Optional[Dict[str, Any]]): Dictionary containing director info.
         _dir_client (DirectorClient): The director client.
+        notebook_path (Optional[str]) : Path to the Jupyter notebook
         generated_workspace_path (Path): Path to generated workspace
     """
 
     def __init__(
         self,
-        aggregator: str = None,
-        collaborators: List[str] = None,
-        director: Dict = None,
-        notebook_path: str = None,
+        aggregator: Optional[str] = None,
+        collaborators: Optional[List[str]] = None,
+        director: Optional[Dict[str, Any]] = None,
+        notebook_path: Optional[str] = None,
         tls: bool = False,
     ) -> None:
         """Initializes the FederatedRuntime object.
 
         Args:
-            aggregator (str): Name of the aggregator. Defaults to
+            aggregator (Optional[str]): Name of the aggregator. Defaults to
                 None.
-            collaborators (List[str]): List of Authorized collaborators.
+            collaborators (Optional[List[str]]): List of Authorized collaborators.
                 Defaults to None.
-            director (Dict): Director information. Defaults to None
-            notebook_path (str): Jupyter notebook path
+            director (Optional[Dict[str, Any]]): Director information. Defaults to None
+            notebook_path (Optional[str]): Jupyter notebook path
             tls (bool): Whether to use TLS for the connection.
         """
         super().__init__()
@@ -59,9 +61,7 @@ class FederatedRuntime(Runtime):
         if collaborators is not None:
             self.collaborators = collaborators
 
-        self.notebook_path = notebook_path
         self.tls = tls
-
         if director:
             self.director = director
             self._fill_certs(
@@ -69,24 +69,29 @@ class FederatedRuntime(Runtime):
                 self.director["api_private_key"],
                 self.director["api_cert"],
             )
+            self._dir_client = self._create_director_client()
 
-            self._dir_client = DirectorClient(
-                director_host=self.director["director_node_fqdn"],
-                director_port=self.director["director_port"],
-                tls=tls,
-                root_certificate=self.root_certificate,
-                private_key=self.private_key,
-                certificate=self.certificate,
-            )
-        self.generated_workspace_path = None
+        self.notebook_path = notebook_path
+        self.generated_workspace_path = Path("./generated_workspace").resolve()
+
+    @classmethod
+    def remove_workspace_archive(self, archive_path) -> None:
+        """
+        Removes workspace archive
+
+        Args:
+            archive_path (str): Archive file path containing the workspace.
+        """
+        if os.path.exists(archive_path):
+            os.remove(archive_path)
 
     @property
-    def aggregator(self) -> str:
+    def aggregator(self) -> Optional[str]:
         """Returns name of _aggregator."""
         return self._aggregator
 
     @aggregator.setter
-    def aggregator(self, aggregator_name: str):
+    def aggregator(self, aggregator_name: str) -> None:
         """Set LocalRuntime _aggregator.
 
         Args:
@@ -107,7 +112,7 @@ class FederatedRuntime(Runtime):
         return self.__collaborators
 
     @collaborators.setter
-    def collaborators(self, collaborators: List[str]):
+    def collaborators(self, collaborators: List[str]) -> None:
         """Set LocalRuntime collaborators.
 
         Args:
@@ -137,6 +142,21 @@ class FederatedRuntime(Runtime):
         else:
             self.root_certificate = self.private_key = self.certificate = None
 
+    def _create_director_client(self) -> DirectorClient:
+        """Create a DirectorClient instance.
+
+        Returns:
+            DirectorClient: Instance of the client
+        """
+        return DirectorClient(
+            director_host=self.director["director_node_fqdn"],
+            director_port=self.director["director_port"],
+            tls=self.tls,
+            root_certificate=self.root_certificate,
+            private_key=self.private_key,
+            certificate=self.certificate,
+        )
+
     def prepare_workspace_archive(self) -> Tuple[Path, str]:
         """
         Prepare workspace archive using WorkspaceExport.
@@ -145,41 +165,31 @@ class FederatedRuntime(Runtime):
             Tuple[Path, str]: A tuple containing the path of the created
         archive and the experiment name.
         """
-        self.generated_workspace_path, archive_path, exp_name = WorkspaceExport.export_federated(
+        archive_path, exp_name = WorkspaceExport.export_federated(
             notebook_path=self.notebook_path,
             output_workspace="./generated_workspace",
         )
         return archive_path, exp_name
 
-    def remove_workspace_archive(self, archive_path) -> None:
-        """
-        Removes workspace archive
-
-        Args:
-            archive_path (str): Archive file path containing the workspace.
-        """
-        if os.path.exists(archive_path):
-            os.remove(archive_path)
-
-    def submit_experiment(self, archive_path, exp_name) -> int:
+    def submit_experiment(self, archive_path, exp_name) -> None:
         """
         Submits experiment archive to the director
 
         Args:
             archive_path (str): Archive file path containing the workspace.
             exp_name (str): The name of the experiment to be submitted.
-
-        Returns:
-            response: The response object from the director containing status.
         """
         try:
             response = self._dir_client.set_new_experiment(
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.__collaborators
             )
         finally:
-            self.remove_workspace_archive(archive_path)
+            FederatedRuntime.remove_workspace_archive(archive_path)
 
-        return response
+        if response.status:
+            print(f"Experiment {exp_name} was submitted to the director!")
+        else:
+            print("Experiment could not be submitted to the director.")
 
     def get_flow_state(self) -> Tuple[bool, Any]:
         """
@@ -198,7 +208,7 @@ class FederatedRuntime(Runtime):
 
         return status, flow_object
 
-    def get_envoys(self) -> Dict[Any]:
+    def get_envoys(self) -> Dict[str, Any]:
         """Gets Envoys
 
         Returns:
@@ -207,7 +217,7 @@ class FederatedRuntime(Runtime):
         envoys = self._dir_client.get_envoys()
         return envoys
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Returns the string representation of the FederatedRuntime object.
 
         Returns:

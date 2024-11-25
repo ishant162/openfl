@@ -24,17 +24,20 @@ class Envoy:
     nodes connected to the Director.
 
     Attributes:
-        envoy_name (str): The name of the envoy.
-        root_certificate (Union[Path, str]): The path to the root certificate
+        name (str): The name of the envoy.
+        envoy_config (Optional[Path]): Path to envoy_config.yaml
+        tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+        root_certificate (Optional[Union[Path, str]]): The path to the root certificate
             for TLS.
-        private_key (Union[Path, str]): The path to the private key for TLS.
-        certificate (Union[Path, str]): The path to the certificate for TLS.
+        private_key (Optional[Union[Path, str]]): The path to the private key for TLS.
+        certificate (Optional[Union[Path, str]]): The path to the certificate for TLS.
         director_client (DirectorClient): The director client.
         install_requirements (bool): A flag indicating if the requirements
             should be installed.
-        executor (ThreadPoolExecutor): The executor for running tasks.
         is_experiment_running (bool): A flag indicating if an experiment is
             running.
+        executor (ThreadPoolExecutor): The executor for running tasks.
         plan(str): Path to plan.yaml
         _health_check_future (object): The future object for the health check.
     """
@@ -47,7 +50,7 @@ class Envoy:
         envoy_name: str,
         director_host: str,
         director_port: int,
-        envoy_config: Path = None,
+        envoy_config: Optional[Path] = None,
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
@@ -60,12 +63,12 @@ class Envoy:
             envoy_name (str): The name of the envoy.
             director_host (str): The host of the director.
             director_port (int): The port of the director.
-            envoy_config (Path): Path to envoy_config.yaml
-            root_certificate (Optional[Union[Path, str]], optional): The path
+            envoy_config (Optional[Path]): Path to envoy_config.yaml
+            root_certificate (Optional[Union[Path, str]]): The path
                 to the root certificate for TLS. Defaults to None.
-            private_key (Optional[Union[Path, str]], optional): The path to
+            private_key (Optional[Union[Path, str]]): The path to
                 the private key for TLS. Defaults to None.
-            certificate (Optional[Union[Path, str]], optional): The path to
+            certificate (Optional[Union[Path, str]]): The path to
                 the certificate for TLS. Defaults to None.
             tls (bool, optional): A flag indicating if TLS should be used for
                 connections. Defaults to True.
@@ -105,7 +108,7 @@ class Envoy:
             certificate=self.certificate,
         )
 
-    def _fill_certs(self, root_certificate, private_key, certificate):
+    def _fill_certs(self, root_certificate, private_key, certificate) -> None:
         """Fill certificates.
 
         Args:
@@ -117,15 +120,16 @@ class Envoy:
                 certificate for the TLS connection.
         """
         if self.tls:
-            if not (root_certificate and private_key and certificate):
-                raise Exception("No certificates provided")
+            if not all([root_certificate, private_key, certificate]):
+                raise ValueError("Incomplete certificates provided")
+
             self.root_certificate = Path(root_certificate).absolute()
             self.private_key = Path(private_key).absolute()
             self.certificate = Path(certificate).absolute()
         else:
             self.root_certificate = self.private_key = self.certificate = None
 
-    def run(self):
+    def run(self) -> None:
         """Run of the envoy working cycle."""
         while True:
             try:
@@ -152,7 +156,7 @@ class Envoy:
                 self.is_experiment_running = False
 
     @staticmethod
-    def _save_data_stream_to_file(data_stream):
+    def _save_data_stream_to_file(data_stream) -> Path:
         """Save data stream to file.
 
         Args:
@@ -170,7 +174,7 @@ class Envoy:
                     raise Exception("Broken archive")
         return data_file_path
 
-    def send_health_check(self):
+    def send_health_check(self) -> None:
         """Send health check to the director."""
         logger.debug("Sending envoy node status to director.")
         timeout = self.DEFAULT_RETRY_TIMEOUT_IN_SECONDS
@@ -202,7 +206,7 @@ class Envoy:
         )
         col.run()
 
-    def start(self):
+    def start(self) -> None:
         """Start the envoy"""
         try:
             is_accepted = self.director_client.connect_envoy(envoy_name=self.name)

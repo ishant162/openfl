@@ -10,12 +10,17 @@ from importlib import import_module, reload
 from logging import getLogger
 from os.path import splitext
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from yaml import SafeDumper, dump, safe_load
 
 from openfl.experimental.interface.cli.cli_helper import WORKSPACE
 from openfl.experimental.transport import AggregatorGRPCClient, AggregatorGRPCServer
 from openfl.utilities.utils import getfqdn_env
+
+if TYPE_CHECKING:
+    from openfl.experimental.component import Aggregator, Collaborator
+    from openfl.experimental.interface import FLSpec
 
 SETTINGS = "settings"
 TEMPLATE = "template"
@@ -24,13 +29,37 @@ AUTO = "auto"
 
 
 class Plan:
-    """Federated Learning plan."""
+    """A class used to represent a Federated Learning plan.
+
+    This class provides methods to manage and manipulate federated learning
+    plans.
+
+    Attributes:
+        logger (Logger): Logger instance for the class.
+        config (dict): Dictionary containing patched plan definition.
+        authorized_cols (list): Authorized collaborator list.
+        cols_data_paths (dict): Collaborator data paths dictionary.
+        collaborator_ (Collaborator): Collaborator object.
+        aggregator_ (Aggregator): Aggregator object.
+        server_ (AggregatorGRPCServer): gRPC server object.
+        client_ (AggregatorGRPCClient): gRPC client object.
+        hash_ (str): Hash of the instance.
+    """
 
     logger = getLogger(__name__)
 
     @staticmethod
-    def load(yaml_path: Path, default: dict = None):
-        """Load the plan from YAML file."""
+    def load(yaml_path: Path, default: dict = None) -> dict:
+        """Load the plan from YAML file.
+
+        Args:
+            yaml_path (Path): Path to the YAML file.
+            default (dict, optional): Default plan configuration.
+                Defaults to {}.
+
+        Returns:
+            dict: Plan configuration loaded from the YAML file.
+        """
         if default is None:
             default = {}
         if yaml_path and yaml_path.exists():
@@ -38,8 +67,15 @@ class Plan:
         return default
 
     @staticmethod
-    def dump(yaml_path, config, freeze=False):
-        """Dump the plan config to YAML file."""
+    def dump(yaml_path, config, freeze=False) -> None:
+        """Dump the plan config to YAML file.
+
+        Args:
+            yaml_path (Path): Path to the YAML file.
+            config (dict): Plan configuration to be dumped.
+            freeze (bool, optional): Flag to freeze the plan. Defaults to
+                False.
+        """
 
         class NoAliasDumper(SafeDumper):
             def ignore_aliases(self, data):
@@ -64,7 +100,7 @@ class Plan:
         cols_config_path: Path = None,
         data_config_path: Path = None,
         resolve=True,
-    ):
+    ) -> "Plan":
         """Parse the Federated Learning plan.
 
         Args:
@@ -139,7 +175,7 @@ class Plan:
             raise
 
     @staticmethod
-    def accept_args(cls):
+    def accept_args(cls) -> bool:
         """Determines whether a class's constructor (__init__ method) accepts
         variable positional arguments (*args).
 
@@ -153,7 +189,7 @@ class Plan:
         return False
 
     @staticmethod
-    def build(template, settings, **override):
+    def build(template, settings, **override) -> object:
         """Create an instance of a openfl Component or Federated
         DataLoader/TaskRunner.
 
@@ -183,14 +219,12 @@ class Plan:
         return instance
 
     @staticmethod
-    def import_(template, reload_module=False):
+    def import_(template) -> object:
         """Import an instance of a openfl Component or Federated
         DataLoader/TaskRunner.
 
         Args:
             template: Fully qualified object path
-            reload_module (bool): If True, forces re-import of the module.
-                Defaults to False.
 
         Returns:
             A Python object
@@ -203,13 +237,14 @@ class Plan:
             extra={"markup": True},
         )
         module = import_module(module_path)
-        if reload_module:
-            module = reload(module)
+        # FIXME: The module needs to be reloaded to ensure private attributes 
+        # are downloaded again upon import. Investigate a more efficient solution.
+        module = reload(module)
         instance = getattr(module, class_name)
 
         return instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize."""
         self.config = {}  # dictionary containing patched plan definition
         self.authorized_cols = []  # authorized collaborator list
@@ -224,7 +259,7 @@ class Plan:
         self.hash_ = None
 
     @property
-    def hash(self):  # NOQA
+    def hash(self) -> str:  # NOQA
         """Generate hash for this instance."""
         self.hash_ = sha384(dump(self.config).encode("utf-8"))
         Plan.logger.info(
@@ -234,7 +269,7 @@ class Plan:
 
         return self.hash_.hexdigest()
 
-    def resolve(self):
+    def resolve(self) -> None:
         """Resolve the federation settings."""
         self.federation_uuid = f"{self.name}_{self.hash[:8]}"
         self.aggregator_uuid = f"aggregator_{self.federation_uuid}"
@@ -249,8 +284,16 @@ class Plan:
                 int(self.hash[:8], 16) % (60999 - 49152) + 49152
             )
 
-    def get_aggregator(self, director_config=None):
-        """Get federation aggregator."""
+    def get_aggregator(self, director_config=None) -> "Aggregator":
+        """Get federation aggregator.
+
+        Args:
+            director_config: Path to director config file.
+                Defaults to None
+
+        Returns:
+            self.aggregator_ (Aggregator): The federation aggregator.
+        """
         defaults = self.config.get(
             "aggregator",
             {TEMPLATE: "openfl.experimental.Aggregator", SETTINGS: {}},
@@ -298,8 +341,30 @@ class Plan:
         client=None,
         tls=False,
         envoy_config=None,
-    ):
-        """Get collaborator."""
+    ) -> "Collaborator":
+        """Get collaborator.
+
+        This method retrieves a collaborator. If the collaborator does not
+        exist, it is built using the configuration settings and the provided
+        parameters.
+
+        Args:
+            collaborator_name (str): Name of the collaborator.
+            root_certificate (str, optional): Root certificate for the
+                collaborator. Defaults to None.
+            private_key (str, optional): Private key for the collaborator.
+                Defaults to None.
+            certificate (str, optional): Certificate for the collaborator.
+                Defaults to None.
+            client (Client, optional): Client for the collaborator. Defaults
+                to None.
+            tls (bool): Whether to use TLS for the connection.
+            envoy_config (Path): Path to envoy_config.yaml. Defaults
+                to None.
+
+        Returns:
+            self.collaborator_ (Collaborator): The collaborator instance.
+        """
         defaults = self.config.get(
             "collaborator",
             {TEMPLATE: "openfl.experimental.Collaborator", SETTINGS: {}},
@@ -343,8 +408,24 @@ class Plan:
         private_key=None,
         certificate=None,
         tls=False,
-    ):
-        """Get gRPC client for the specified collaborator."""
+    ) -> AggregatorGRPCClient:
+        """Get gRPC client for the specified collaborator.
+
+        Args:
+            collaborator_name (str): Name of the collaborator.
+            aggregator_uuid (str): UUID of the aggregator.
+            federation_uuid (str): UUID of the federation.
+            root_certificate (str, optional): Root certificate for the
+                collaborator. Defaults to None.
+            private_key (str, optional): Private key for the collaborator.
+                Defaults to None.
+            certificate (str, optional): Certificate for the collaborator.
+                Defaults to None.
+            tls (bool): Whether to use TLS for the connection.
+
+        Returns:
+            AggregatorGRPCClient: gRPC client for the specified collaborator.
+        """
         common_name = collaborator_name
         if not root_certificate or not private_key or not certificate:
             root_certificate = "cert/cert_chain.crt"
@@ -376,8 +457,24 @@ class Plan:
         tls=None,
         director_config=None,
         **kwargs,
-    ):
-        """Get gRPC server of the aggregator instance."""
+    ) -> AggregatorGRPCServer:
+        """Get gRPC server of the aggregator instance.
+
+        Args:
+            root_certificate (str, optional): Root certificate for the server.
+                Defaults to None.
+            private_key (str, optional): Private key for the server. Defaults
+                to None.
+            certificate (str, optional): Certificate for the server. Defaults
+                to None.
+            tls (bool): Whether to use TLS for the connection.
+            director_config (Path): Path to director_config.yaml. Defaults
+                to None.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            AggregatorGRPCServer: gRPC server of the aggregator instance.
+        """
         common_name = self.config["network"][SETTINGS]["agg_addr"].lower()
 
         if not root_certificate or not private_key or not certificate:
@@ -402,8 +499,12 @@ class Plan:
 
         return self.server_
 
-    def get_flow(self):
-        """Instantiates federated flow object."""
+    def get_flow(self) -> "FLSpec":
+        """Instantiates federated flow object.
+
+        Returns:
+            flow_: FLSpec instance
+        """
         defaults = self.config.get(
             "federated_flow",
             {TEMPLATE: self.config["federated_flow"]["template"], SETTINGS: {}},
@@ -413,7 +514,18 @@ class Plan:
         self.flow_ = Plan.build(**defaults)
         return self.flow_
 
-    def import_kwargs_modules(self, defaults):
+    def import_kwargs_modules(self, defaults) -> Dict[str, Any]:
+        """
+        Imports and resolves class references in a nested settings structure.
+        Args:
+            defaults (Dict[str, Any]): A dictionary of settings, containing module paths
+                and class names as strings in its nested structure.
+
+        Returns:
+            Dict[str, Any]: The updated settings dictionary with resolved classes and attributes
+                from the imported modules.
+        """
+
         def import_nested_settings(settings):
             for key, value in settings.items():
                 if isinstance(value, dict):
@@ -442,7 +554,26 @@ class Plan:
         defaults[SETTINGS] = import_nested_settings(defaults[SETTINGS])
         return defaults
 
-    def get_private_attr(self, private_attr_name=None, config=None):
+    def get_private_attr(
+        self, private_attr_name=None, config=None
+    ) -> Tuple[Optional[dict], Optional[dict], dict]:
+        """
+        Retrieves private attributes defined in a configuration or data file.
+
+        Args:
+            private_attr_name (str): The name of the participant (Aggregator or Collaborator)
+                whose private attribute is to be retrieved.
+            config (Path): Path to the config file.
+
+        Returns:
+            Tuple: A tuple containing:
+                - private_attrs_callable (Optional[dict]): A dictionary containing callable
+                    function information, or None if not applicable.
+                - private_attrs_kwargs (Optional[dict]): A dictionary of arguments for the
+                    callable function, or None if not applicable.
+                - private_attributes (dict): A dictionary of private attributes,
+                    or an empty dictionary if none are found.
+        """
         private_attrs_callable = private_attrs_kwargs = None
         private_attributes = {}
 
@@ -473,12 +604,10 @@ class Plan:
                     )["settings"]
 
                     if isinstance(private_attrs_callable, dict):
-                        private_attrs_callable = Plan.import_(
-                            **private_attrs_callable, reload_module=True
-                        )
+                        private_attrs_callable = Plan.import_(**private_attrs_callable)
                 elif private_attributes:
                     private_attributes = Plan.import_(
-                        d.get(private_attr_name)["private_attributes"], reload_module=True
+                        d.get(private_attr_name)["private_attributes"]
                     )
                 elif not callable(private_attrs_callable):
                     raise TypeError(

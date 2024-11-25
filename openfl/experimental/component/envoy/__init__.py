@@ -3,8 +3,4 @@
 
 """Envoy package."""
 
-from .envoy import Envoy
-
-__all__ = [
-    "Envoy",
-]
+from openfl.experimental.component.envoy.envoy import Envoy

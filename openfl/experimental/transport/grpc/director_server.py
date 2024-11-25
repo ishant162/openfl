@@ -7,7 +7,7 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional, Union
+from typing import AsyncIterator, Optional, Union
 
 import grpc
 from grpc import aio, ssl_server_credentials
@@ -32,11 +32,11 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
     Attributes:
         listen_uri (str): The URI that the server is serving on.
         tls (bool): Whether to use TLS for the connection.
-        root_certificate (Path): The path to the root certificate for the TLS
+        root_certificate (Optional[Union[Path, str]]): The path to the root certificate for the TLS
             connection.
-        private_key (Path): The path to the server's private key for the TLS
+        private_key (Optional[Union[Path, str]]): The path to the server's private key for the TLS
             connection.
-        certificate (Path): The path to the server's certificate for the TLS
+        certificate (Optional[Union[Path, str]]): The path to the server's certificate for the TLS
             connection.
         server (grpc.Server): The gRPC server.
         root_dir (Path): Path to the root directory
@@ -54,7 +54,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         listen_host: str = "[::]",
         listen_port: int = 50051,
         envoy_health_check_period: int = 0,
-        director_config: Path = None,
+        director_config: Optional[Path] = None,
         **kwargs,
     ) -> None:
         """
@@ -64,20 +64,20 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             director_cls (Type[Director]): The class of the director.
             tls (bool, optional): Whether to use TLS for the connection.
                 Defaults to True.
-            root_certificate (Optional[Union[Path, str]], optional): The path
+            root_certificate (Optional[Union[Path, str]]): The path
                 to the root certificate for the TLS connection. Defaults to
                 None.
-            private_key (Optional[Union[Path, str]], optional): The path to
+            private_key (Optional[Union[Path, str]]): The path to
                 the server's private key for the TLS connection. Defaults to
                 None.
-            certificate (Optional[Union[Path, str]], optional): The path to
+            certificate (Optional[Union[Path, str]]): The path to
                 the server's certificate for the TLS connection. Defaults to
                 None.
             listen_host (str, optional): The host to listen on. Defaults to
                 '[::]'.
             listen_port (int, optional): The port to listen on. Defaults to
                 50051.
-            director_config (Path): Path to director_config file
+            director_config (Optional[Path]): Path to director_config file
             **kwargs: Additional keyword arguments.
         """
         super().__init__()
@@ -96,8 +96,9 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
             **kwargs,
         )
 
-    def _fill_certs(self, root_certificate, private_key, certificate):
+    def _fill_certs(self, root_certificate, private_key, certificate) -> None:
         """Fill certificates.
+
         Args:
             root_certificate (Union[Path, str]): The path to the root
                 certificate for the TLS connection.
@@ -107,21 +108,22 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                 certificate for the TLS connection.
         """
         if self.tls:
-            if not (root_certificate and private_key and certificate):
-                raise Exception("No certificates provided")
+            if not all([root_certificate, private_key, certificate]):
+                raise ValueError("Incomplete certificates provided")
+
             self.root_certificate = Path(root_certificate).absolute()
             self.private_key = Path(private_key).absolute()
             self.certificate = Path(certificate).absolute()
         else:
             self.root_certificate = self.private_key = self.certificate = None
 
-    def start(self):
+    def start(self) -> None:
         """Launch the DirectorGRPCServer"""
         loop = asyncio.get_event_loop()
         loop.create_task(self.director.start_experiment_execution_loop())
         loop.run_until_complete(self._run_server())
 
-    async def _run_server(self):
+    async def _run_server(self) -> None:
         """Run the gRPC server."""
         self.server = aio.server(options=channel_options)
         director_pb2_grpc.add_DirectorServicer_to_server(self, self.server)
@@ -163,7 +165,9 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         client_id = headers.get("client_id", CLIENT_ID_DEFAULT)
         return client_id
 
-    async def GetExperimentData(self, request, context):
+    async def GetExperimentData(
+        self, request, context
+    ) -> AsyncIterator[director_pb2.ExperimentData]:
         """Receive experiment data.
 
         Args:
@@ -183,7 +187,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
                     break
                 yield director_pb2.ExperimentData(size=len(data), exp_data=data)
 
-    async def WaitExperiment(self, request, context):
+    async def WaitExperiment(self, request, context) -> director_pb2.WaitExperimentResponse:
         """Handles a request to wait for an experiment to be ready.
 
         Args:
@@ -207,7 +211,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.WaitExperimentResponse(experiment_name=experiment_name)
 
-    async def SetNewExperiment(self, stream, context):
+    async def SetNewExperiment(self, stream, context) -> director_pb2.SetNewExperimentResponse:
         """Request to set new experiment.
 
         Args:
@@ -238,7 +242,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         logger.info("Experiment %s registered", request.name)
         return director_pb2.SetNewExperimentResponse(status=is_accepted)
 
-    def EnvoyConnectionRequest(self, request, context):
+    def EnvoyConnectionRequest(self, request, context) -> director_pb2.RequestAccepted:
         """Handles a connection request from an Envoy.
 
         Args:
@@ -256,7 +260,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.RequestAccepted(accepted=is_accepted)
 
-    async def UpdateEnvoyStatus(self, request, context):
+    async def UpdateEnvoyStatus(self, request, context) -> director_pb2.UpdateEnvoyStatusResponse:
         """Accept health check from envoy.
 
         Args:
@@ -283,7 +287,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
             return resp
 
-    async def GetEnvoys(self, request, context):
+    async def GetEnvoys(self, request, context) -> director_pb2.GetEnvoysResponse:
         """Get status of connected envoys.
 
         Args:
@@ -310,7 +314,7 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         return director_pb2.GetEnvoysResponse(envoy_infos=envoy_statuses)
 
-    async def GetFlowState(self, request, context):
+    async def GetFlowState(self, request, context) -> director_pb2.GetFlowStateResponse:
         """Get updated flow after experiment is finished.
 
         Args:

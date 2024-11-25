@@ -3,8 +3,4 @@
 
 """Director package."""
 
-from .director import Director
-
-__all__ = [
-    "Director",
-]
+from openfl.experimental.component.director.director import Director

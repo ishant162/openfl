@@ -9,7 +9,7 @@ import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -22,11 +22,11 @@ class Director:
 
     Attributes:
         tls (bool): A flag indicating if TLS should be used for connections.
-        root_certificate (Union[Path, str]): The path to the root certificate
+        root_certificate (Optional[Union[Path, str]]): The path to the root certificate
             for TLS.
-        private_key (Union[Path, str]): The path to the private key for TLS.
-        certificate (Union[Path, str]): The path to the certificate for TLS.
-        director_config (Path): Path to director_config file
+        private_key (Optional[Union[Path, str]]): The path to the private key for TLS.
+        certificate (Optional[Union[Path, str]]): The path to the certificate for TLS.
+        director_config (Optional[Path]): Path to director_config file
         envoy_health_check_period (int): The period for health check of envoys
             in seconds.
         install_requirements (bool): A flag indicating if the requirements
@@ -44,27 +44,27 @@ class Director:
         self,
         *,
         tls: bool = True,
-        root_certificate: Union[Path, str] = None,
-        private_key: Union[Path, str] = None,
-        certificate: Union[Path, str] = None,
-        director_config: Path = None,
+        root_certificate: Optional[Union[Path, str]] = None,
+        private_key: Optional[Union[Path, str]] = None,
+        certificate: Optional[Union[Path, str]] = None,
+        director_config: Optional[Path] = None,
         envoy_health_check_period: int = 60,
-        install_requirements: bool = False,
+        install_requirements: bool = True,
     ) -> None:
         """Initialize a Director object.
 
         Args:
             tls (bool, optional): A flag indicating if TLS should be used for
                 connections. Defaults to True.
-            root_certificate (Union[Path, str], optional): The path to the
+            root_certificate (Optional[Union[Path, str]]): The path to the
                 root certificate for TLS. Defaults to None.
-            private_key (Union[Path, str], optional): The path to the private
+            private_key (Optional[Union[Path, str]]): The path to the private
                 key for TLS. Defaults to None.
-            certificate (Union[Path, str], optional): The path to the
+            certificate (Optional[Union[Path, str]]): The path to the
                 certificate for TLS. Defaults to None.
-            director_config (Path): Path to director_config file
+            director_config (Optional[Path]): Path to director_config file
             install_requirements (bool, optional): A flag indicating if the
-                requirements should be installed. Defaults to False.
+                requirements should be installed. Defaults to True.
         """
         self.tls = tls
         self.root_certificate = root_certificate
@@ -82,7 +82,7 @@ class Director:
         # authorized_cols refers to envoy & collaborator pair (one to one mapping)
         self.authorized_cols = []
 
-    async def start_experiment_execution_loop(self):
+    async def start_experiment_execution_loop(self) -> None:
         """Run tasks and experiments here"""
         loop = asyncio.get_event_loop()
         while True:
@@ -109,12 +109,14 @@ class Director:
                 logger.error(f"Error while executing experiment: {e}")
                 raise
 
-    async def _wait_for_authorized_envoys(self):
-        """Wait until the authorized envoys are connected"""
-
-        while set(self.authorized_cols) != set(self.get_envoys()):
+    async def _wait_for_authorized_envoys(self) -> None:
+        """Wait until all authorized envoys are connected"""
+        while not all(envoy in self.get_envoys().keys() for envoy in self.authorized_cols):
+            connected_envoys = len(
+                [envoy for envoy in self.authorized_cols if envoy in self.get_envoys().keys()]
+            )
             logger.info(
-                f"Waiting for {len(self.get_envoys())}/{len(self.authorized_cols)} envoys to connect..."
+                f"Waiting for {connected_envoys}/{len(self.authorized_cols)} authorized envoys to connect..."
             )
             await asyncio.sleep(10)
 
@@ -129,8 +131,8 @@ class Director:
         while not self._flow_status:
             await asyncio.sleep(10)
 
-        # Reset flow status
         status, flspec_obj = self._flow_status
+        # Reset flow status
         self._flow_status = []
         # Return flow_status when the status is FINISHED
         return status, pickle.dumps(flspec_obj)
@@ -220,7 +222,7 @@ class Director:
         # Future logic might change this to handle conditions.
         return True
 
-    def get_envoys(self) -> list:
+    def get_envoys(self) -> Dict[str, Any]:
         """Gets list of connected envoys
 
         Returns:

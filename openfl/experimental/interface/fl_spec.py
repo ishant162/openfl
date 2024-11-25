@@ -31,7 +31,7 @@ class FLSpec:
     _clones = []
     _initial_state = None
 
-    def __init__(self, checkpoint: bool = False):
+    def __init__(self, checkpoint: bool = False) -> None:
         """Initializes the FLSpec object.
 
         Args:
@@ -52,7 +52,7 @@ class FLSpec:
         cls._clones = {name: deepcopy(instance) for name in names}
 
     @classmethod
-    def _reset_clones(cls):
+    def _reset_clones(cls) -> None:
         """Resets the clones of the class."""
 
         cls._clones = []
@@ -113,18 +113,12 @@ class FLSpec:
             try:
                 # Prepare workspace and submit it for the FederatedRuntime
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
-                self.submit_experiment(archive_path, exp_name)
+                self.runtime.submit_experiment(archive_path, exp_name)
                 # Retrieve the flspec object to update the experiment state
                 flspec_obj = self.get_flow_state()
 
-                # Update self with artifacts from the generated flspec object
-                artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
-                for name, attr in artifacts_iter():
-                    setattr(self, name, deepcopy(attr))
-
-                # Update specific attributes from flspec_obj
-                self._foreach_methods = flspec_obj._foreach_methods
-                self.execute_task_args = flspec_obj.execute_task_args
+                # Update state of self
+                self._update_from_flspec_obj(flspec_obj)
             except Exception as e:
                 raise Exception(
                     f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
@@ -155,20 +149,18 @@ class FLSpec:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
         self._runtime = runtime
 
-    def submit_experiment(self, archive_path: str, exp_name: str) -> None:
-        """
-        Submits experiment archive to the director using runtime.
+    def _update_from_flspec_obj(self, flspec_obj: FLSpec) -> None:
+        """Update self with attributes from the generated flspec object.
 
         Args:
-            archive_path (str): Archive file path containing the workspace.
-            exp_name (str): The name of the experiment to be submitted.
+            flspec_obj (FLSpec): Updated Flspec instance
         """
-        response = self.runtime.submit_experiment(archive_path, exp_name)
+        artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
+        for name, attr in artifacts_iter():
+            setattr(self, name, deepcopy(attr))
 
-        if response.status:
-            print("Experiment was submitted to the director!")
-        else:
-            print("Experiment could not be submitted to the director.")
+        self._foreach_methods = flspec_obj._foreach_methods
+        self.execute_task_args = flspec_obj.execute_task_args
 
     def get_flow_state(self) -> FLSpec:
         """

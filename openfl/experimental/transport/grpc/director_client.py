@@ -5,8 +5,11 @@
 
 import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Iterator, Optional, Tuple, Union  # type: ignore
 
 import grpc
+from grpc._channel import _MultiThreadedRendezvous as DataStream
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -14,6 +17,8 @@ from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 from .grpc_channel_options import channel_options
 
 logger = logging.getLogger(__name__)
+
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 class DirectorClient:
@@ -24,7 +29,7 @@ class DirectorClient:
 
     Attributes:
         director_addr (host:port): Director Address
-        envoy_name (str): The name of the envoy.
+        envoy_name (Optional[str]): The name of the envoy.
         stub (director_pb2_grpc.DirectorStub): The gRPC stub for communication
             with the director.
     """
@@ -34,11 +39,11 @@ class DirectorClient:
         *,
         director_host: str,
         director_port: int,
-        envoy_name: str = None,
+        envoy_name: Optional[str] = None,
         tls: bool = False,
-        root_certificate: str = None,
-        private_key: str = None,
-        certificate: str = None,
+        root_certificate: Optional[Union[Path, str]] = None,
+        private_key: Optional[Union[Path, str]] = None,
+        certificate: Optional[Union[Path, str]] = None,
     ) -> None:
         """
         Initialize director client object.
@@ -46,13 +51,13 @@ class DirectorClient:
         Args:
             director_host (str): The host name for Director server.
             director_port (int): The port number for Director server.
-            envoy_name (str): The name of the envoy.
+            envoy_name (Optional[str]): The name of the envoy.
             tls (bool): Whether to use TLS for the connection.
-            root_certificate (str): The path to the root certificate for the
+            root_certificate (Optional[Union[Path, str]]): The path to the root certificate for the
                 TLS connection.
-            private_key (str): The path to the private key for the TLS
+            private_key (Optional[Union[Path, str]]): The path to the private key for the TLS
                 connection.
-            certificate (str): The path to the certificate for the TLS
+            certificate (Optional[Union[Path, str]]): The path to the certificate for the TLS
                 connection.
         """
         director_addr = f"{director_host}:{director_port}"
@@ -61,7 +66,7 @@ class DirectorClient:
             channel = grpc.insecure_channel(director_addr, options=channel_options)
         else:
             if not (root_certificate and private_key and certificate):
-                raise Exception("No certificates provided")
+                raise Exception("No certificates provided for TLS connection")
             try:
                 with open(root_certificate, "rb") as f:
                     root_certificate_b = f.read()
@@ -95,7 +100,7 @@ class DirectorClient:
 
         return response.accepted
 
-    def wait_experiment(self):
+    def wait_experiment(self) -> str:
         """
         Waits for experiment data from the director.
 
@@ -111,7 +116,7 @@ class DirectorClient:
 
         return experiment_name
 
-    def get_experiment_data(self, experiment_name):
+    def get_experiment_data(self, experiment_name) -> DataStream:
         """
         Get an experiment data from the director.
 
@@ -130,7 +135,7 @@ class DirectorClient:
 
         return data_stream
 
-    def _get_experiment_data(self):
+    def _get_experiment_data(self) -> director_pb2.WaitExperimentRequest:
         """Generate the experiment data request.
 
         Returns:
@@ -139,7 +144,9 @@ class DirectorClient:
         """
         return director_pb2.WaitExperimentRequest(collaborator_name=self.envoy_name)
 
-    def set_new_experiment(self, experiment_name, col_names, archive_path):
+    def set_new_experiment(
+        self, experiment_name, col_names, archive_path
+    ) -> director_pb2.SetNewExperimentResponse:
         """
         Send the new experiment to director to launch.
 
@@ -162,7 +169,9 @@ class DirectorClient:
         resp = self.stub.SetNewExperiment(experiment_info_gen)
         return resp
 
-    def _get_experiment_info(self, arch_path, name, col_names):
+    def _get_experiment_info(
+        self, arch_path, name, col_names
+    ) -> Iterator[director_pb2.ExperimentInfo]:
         """
         Generate the experiment data request.
 
@@ -192,14 +201,14 @@ class DirectorClient:
                 yield experiment_info
                 chunk = arch.read(max_buffer_size)
 
-    def get_envoys(self):
+    def get_envoys(self) -> Dict[str, Dict[str, Any]]:
         """Get envoys info.
 
         Returns:
-            result Dict[str, Dict[str, Any]]]): The envoys info.
+            result Dict[str, Dict[str, Any]]: The envoys info.
         """
         envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now().strftime(DATETIME_FORMAT)
         result = {}
         for envoy in envoys.envoy_infos:
             result[envoy.envoy_name] = {
@@ -207,7 +216,7 @@ class DirectorClient:
                 "is_online": envoy.is_online or False,
                 "is_experiment_running": envoy.is_experiment_running or False,
                 "last_updated": datetime.fromtimestamp(envoy.last_updated.seconds).strftime(
-                    "%Y-%m-%d %H:%M:%S"
+                    DATETIME_FORMAT
                 ),
                 "current_time": now,
                 "valid_duration": envoy.valid_duration,
@@ -215,7 +224,7 @@ class DirectorClient:
             }
         return result
 
-    def get_flow_state(self):
+    def get_flow_state(self) -> Tuple:
         """
         Gets updated state of the flow
 
