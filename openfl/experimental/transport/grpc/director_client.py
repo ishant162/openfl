@@ -270,3 +270,18 @@ class DirectorClient:
             health_check_period = response.health_check_period.seconds
 
             return health_check_period
+
+    def stream_experiment_stdout(self, experiment_name) -> Iterator[Dict[str, Any]]:
+        """Stream experiment stdout RPC.
+        Args:
+            experiment_name (str): The name of the experiment.
+        Yields:
+            Dict[str, Any]: The stdout.
+        """
+        request = director_pb2.GetExperimentStdoutRequest(experiment_name=experiment_name)
+        for stdout_message in self.stub.GetExperimentStdout(request):
+            yield {
+                "stdout_origin": stdout_message.stdout_origin,
+                "task_name": stdout_message.task_name,
+                "stdout_value": stdout_message.stdout_value,
+            }

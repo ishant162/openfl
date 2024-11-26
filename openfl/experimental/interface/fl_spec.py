@@ -114,9 +114,11 @@ class FLSpec:
                 # Prepare workspace and submit it for the FederatedRuntime
                 archive_path, exp_name = self.runtime.prepare_workspace_archive()
                 self.runtime.submit_experiment(archive_path, exp_name)
+                # Stream the experiment's stdout if the checkpoint is enabled
+                if self._checkpoint:
+                    self.runtime.stream_experiment_stdout(exp_name)
                 # Retrieve the flspec object to update the experiment state
                 flspec_obj = self.get_flow_state()
-
                 # Update state of self
                 self._update_from_flspec_obj(flspec_obj)
             except Exception as e:

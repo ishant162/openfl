@@ -32,6 +32,7 @@ class FederatedRuntime(Runtime):
         director (Optional[Dict[str, Any]]): Dictionary containing director info.
         _dir_client (DirectorClient): The director client.
         notebook_path (Optional[str]) : Path to the Jupyter notebook
+        experiment_submitted (bool): Whether the experiment has been submitted.
         generated_workspace_path (Path): Path to generated workspace
     """
 
@@ -72,6 +73,7 @@ class FederatedRuntime(Runtime):
             self._dir_client = self._create_director_client()
 
         self.notebook_path = notebook_path
+        self.experiment_submitted = False
         self.generated_workspace_path = Path("./generated_workspace").resolve()
 
     @classmethod
@@ -183,13 +185,14 @@ class FederatedRuntime(Runtime):
             response = self._dir_client.set_new_experiment(
                 archive_path=archive_path, experiment_name=exp_name, col_names=self.__collaborators
             )
+            self.experiment_submitted = response.status
+
+            if self.experiment_submitted:
+                print(f"Experiment {exp_name} was successfully submitted to the director!")
+            else:
+                print(f"Failed to submit experiment '{exp_name}' to the director.")
         finally:
             FederatedRuntime.remove_workspace_archive(archive_path)
-
-        if response.status:
-            print(f"Experiment {exp_name} was submitted to the director!")
-        else:
-            print("Experiment could not be submitted to the director.")
 
     def get_flow_state(self) -> Tuple[bool, Any]:
         """
@@ -216,6 +219,22 @@ class FederatedRuntime(Runtime):
         """
         envoys = self._dir_client.get_envoys()
         return envoys
+
+    def stream_experiment_stdout(self, experiment_name) -> None:
+        """Stream experiment stdout.
+
+        Args:
+            experiment_name (str): Name of the experiment.
+        """
+        if not self.experiment_submitted:
+            return
+        print(f"Getting standard output for experiment: {experiment_name}...")
+        for stdout_message_dict in self._dir_client.stream_experiment_stdout(experiment_name):
+            print(
+                f'Origin: {stdout_message_dict["stdout_origin"]}, '
+                f'Task: {stdout_message_dict["task_name"]}'
+                f'\n{stdout_message_dict["stdout_value"]}'
+            )
 
     def __repr__(self) -> str:
         """Returns the string representation of the FederatedRuntime object.

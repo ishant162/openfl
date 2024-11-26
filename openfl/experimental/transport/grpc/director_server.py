@@ -327,3 +327,27 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         """
         status, flspec_obj = await self.director.get_flow_state()
         return director_pb2.GetFlowStateResponse(completed=status, flspec_obj=flspec_obj)
+
+    async def GetExperimentStdout(
+        self, request, context
+    ) -> AsyncIterator[director_pb2.GetExperimentStdoutResponse]:
+        """
+        Request to stream stdout from the aggregator to frontend.
+
+        Args:
+            request (director_pb2.GetExperimentStdoutRequest): The request from
+                the experiment manager.
+            context (grpc.ServicerContext): The context of the request.
+
+        Yields:
+            director_pb2.GetExperimentStdoutResponse: The metrics.
+        """
+        logger.info("Getting standard output for experiment: %s...", request.experiment_name)
+        caller = self.get_caller(context)
+        async for stdout_dict in self.director.stream_experiment_stdout(
+            experiment_name=request.experiment_name, caller=caller
+        ):
+            if stdout_dict is None:
+                await asyncio.sleep(1)
+                continue
+            yield director_pb2.GetExperimentStdoutResponse(**stdout_dict)

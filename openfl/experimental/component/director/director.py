@@ -9,7 +9,7 @@ import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Tuple, Union
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -189,6 +189,42 @@ class Director:
         self.authorized_cols = collaborator_names
         self.experiments_registry.add(experiment)
         return True
+
+    async def stream_experiment_stdout(
+        self, experiment_name: str, caller: str
+    ) -> AsyncGenerator[Optional[Dict[str, Any]], None]:
+        """Stream stdout from the aggregator.
+
+        This method takes next stdout dictionary from the aggregator's queue
+        and returns it to the caller.
+
+        Args:
+            experiment_name (str): String id for experiment.
+            caller (str): String id for experiment owner.
+
+        Yields:
+            Optional[Dict[str, str]]: A dictionary containing the keys
+            'stdout_origin', 'task_name', and 'stdout_value' if the queue is not empty,
+            or None if the queue is empty but the experiment is still running.
+        """
+        if (
+            experiment_name not in self.experiments_registry
+            or caller not in self.experiments_registry[experiment_name].users
+        ):
+            raise Exception(
+                f'No experiment name "{experiment_name}" in experiments list, or caller "{caller}"'
+                f" does not have access to this experiment"
+            )
+        while not self.experiments_registry[experiment_name].aggregator:
+            await asyncio.sleep(5)
+        aggregator = self.experiments_registry[experiment_name].aggregator
+        while True:
+            if not aggregator.stdout_queue.empty():
+                yield aggregator.stdout_queue.get()
+                continue
+            if aggregator.all_quit_jobs_sent() and aggregator.stdout_queue.empty():
+                return
+            yield None
 
     def get_experiment_data(self, experiment_name: str) -> Path:
         """Get experiment data.

@@ -237,7 +237,7 @@ class Plan:
             extra={"markup": True},
         )
         module = import_module(module_path)
-        # FIXME: The module needs to be reloaded to ensure private attributes 
+        # FIXME: The module needs to be reloaded to ensure private attributes
         # are downloaded again upon import. Investigate a more efficient solution.
         module = reload(module)
         instance = getattr(module, class_name)
@@ -312,8 +312,8 @@ class Plan:
 
         defaults[SETTINGS]["flow"] = self.get_flow()
         checkpoint = self.config.get("federated_flow", False)
-        if not checkpoint:
-            checkpoint = checkpoint["settings"]["checkpoint"]
+        if checkpoint:
+            checkpoint = checkpoint.get("settings", {}).get("checkpoint", False)
         defaults[SETTINGS]["checkpoint"] = checkpoint
 
         log_metric_callback = defaults[SETTINGS].get("log_metric_callback")
