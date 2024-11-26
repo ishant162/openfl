@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from datetime import datetime
 import yaml
 import logging
 
@@ -24,12 +23,13 @@ class ModelOwner:
     4. Importing and exporting the workspace etc.
     """
 
-    def __init__(self, workspace_name, model_name):
+    def __init__(self, workspace_name, model_name, log_memory_usage):
         """
         Initialize the ModelOwner class
         Args:
             workspace_name (str): Workspace name
             model_name (str): Model name
+            log_memory_usage (bool): Memory Log flag
         """
         self.workspace_name = workspace_name
         self.model_name = model_name
@@ -39,6 +39,7 @@ class ModelOwner:
         self.plan_path = None
         self.num_collaborators = constants.NUM_COLLABORATORS
         self.rounds_to_train = constants.NUM_ROUNDS
+        self.log_memory_usage = log_memory_usage
 
     def create_workspace(self, results_dir=None):
         """
@@ -113,17 +114,18 @@ class ModelOwner:
             raise e
         return True
 
-    def modify_plan(self, new_rounds=None, num_collaborators=None):
+    def modify_plan(self, new_rounds=None, num_collaborators=None, disable_client_auth=False, disable_tls=False):
         """
         Modify the plan to train the model
         Args:
             new_rounds (int): Number of rounds to train
             num_collaborators (int): Number of collaborators
+            disable_client_auth (bool): Disable client authentication
+            disable_tls (bool): Disable TLS communication
         Returns:
             bool: True if successful, else False
         """
         self.plan_path = os.path.join(self.workspace_path, "plan", "plan.yaml")
-        log.info(f"Modifying the plan at {self.plan_path}")
         # Open the file and modify the entries
         self.rounds_to_train = new_rounds if new_rounds else self.rounds_to_train
         self.num_collaborators = num_collaborators if num_collaborators else self.num_collaborators
@@ -132,14 +134,18 @@ class ModelOwner:
             data = yaml.load(fp, Loader=yaml.FullLoader)
 
         data["aggregator"]["settings"]["rounds_to_train"] = int(self.rounds_to_train)
+        # Memory Leak related
+        data["aggregator"]["settings"]["log_memory_usage"] = self.log_memory_usage
+        data["collaborator"]["settings"]["log_memory_usage"] = self.log_memory_usage
+
         data["data_loader"]["settings"]["collaborator_count"] = int(self.num_collaborators)
+        data["network"]["settings"]["disable_client_auth"] = disable_client_auth
+        data["network"]["settings"]["tls"] = not disable_tls
 
         with open(self.plan_path, "w+") as write_file:
             yaml.dump(data, write_file)
 
-        log.info(
-            f"Modified the plan to train the model for collaborators {self.num_collaborators} and {self.rounds_to_train} rounds"
-        )
+        log.info(f"Modified the plan at {self.plan_path} with provided parameters.")
         return True
 
     def initialize_plan(self, agg_domain_name):
@@ -178,6 +184,41 @@ class ModelOwner:
             log.info(f"Certified the workspace {self.workspace_name}")
         except Exception as e:
             log.error(f"Failed to certify the workspace: {e}")
+            raise e
+        return True
+
+    def register_collaborators(self, num_collaborators=None):
+        """
+        Register the collaborators
+        Args:
+            num_collaborators (int, Optional): Number of collaborators
+        Returns:
+            bool: True if successful, else False
+        """
+        self.cols_path = os.path.join(self.workspace_path, "plan", "cols.yaml")
+        log.info(f"Registering the collaborators..")
+        self.num_collaborators = num_collaborators if num_collaborators else self.num_collaborators
+
+        try:
+            # Straightforward writing to the yaml file is not recommended here
+            # As the file might contain spaces and tabs which can cause issues
+            with open(self.cols_path, "r", encoding="utf-8") as f:
+                doc = yaml.load(f, Loader=yaml.FullLoader)
+
+            if "collaborators" not in doc.keys() or not doc["collaborators"]:
+                doc["collaborators"] = []  # Create empty list
+
+            for i in range(num_collaborators):
+                col_name = "collaborator" + str(i+1)
+                doc["collaborators"].append(col_name)
+                with open(self.cols_path, "w", encoding="utf-8") as f:
+                    yaml.dump(doc, f)
+
+            log.info(
+                f"Successfully registered collaborators in {self.cols_path}"
+            )
+        except Exception as e:
+            log.error(f"Failed to register the collaborators: {e}")
             raise e
         return True
 
@@ -292,8 +333,7 @@ class Aggregator:
         """
         try:
             log.info(f"Starting {self.name}")
-            curr_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.name}_{curr_time}.log"
+            filename = f"{self.name}.log"
             res_file = os.path.join(os.getcwd(), self.workspace_path, filename)
             bg_file = open(res_file, "w", buffering=1)
 
@@ -412,8 +452,7 @@ class Collaborator:
         """
         try:
             log.info(f"Starting {self.collaborator_name}")
-            curr_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.collaborator_name}_{curr_time}.log"
+            filename = f"{self.collaborator_name}.log"
             res_file = os.path.join(os.getcwd(), self.workspace_path, filename)
             bg_file = open(res_file, "w", buffering=1)
 
