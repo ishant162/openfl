@@ -41,6 +41,8 @@ class Experiment:
             users (Iterable[str]): The list of users.
             status (str): The status of the experiment.
             aggregator (object): The aggregator object.
+            updated_flow (object): Updated flow object.
+                Defaults to none.
     """
 
     def __init__(
@@ -76,6 +78,7 @@ class Experiment:
         self.users = set() if users is None else set(users)
         self.status = Status.PENDING
         self.aggregator = None
+        self.updated_flow = None
 
     async def start(
         self,

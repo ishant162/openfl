@@ -311,10 +311,7 @@ class Plan:
         defaults[SETTINGS]["private_attributes"] = private_attributes
 
         defaults[SETTINGS]["flow"] = self.get_flow()
-        checkpoint = self.config.get("federated_flow", False)
-        if checkpoint:
-            checkpoint = checkpoint.get("settings", {}).get("checkpoint", False)
-        defaults[SETTINGS]["checkpoint"] = checkpoint
+        defaults[SETTINGS]["checkpoint"] = defaults[SETTINGS]["flow"].checkpoint
 
         log_metric_callback = defaults[SETTINGS].get("log_metric_callback")
         if log_metric_callback:

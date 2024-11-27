@@ -28,6 +28,18 @@ from openfl.experimental.utilities import (
 
 
 class FLSpec:
+    """FLSpec Class
+
+    A class representing a Federated Learning Specification. It manages clones,
+    maintains the initial state, and supports checkpointing.
+
+    Attributes:
+        _clones (list): A list of clones created for the FLSpec instance.
+        _initial_state (FLSpec or None): The saved initial state of the FLSpec instance.
+        _foreach_methods (list): A list of methods to be applied iteratively.
+        _checkpoint (bool): A flag indicating whether checkpointing is enabled.
+    """
+
     _clones = []
     _initial_state = None
 
@@ -66,6 +78,29 @@ class FLSpec:
                 saved.
         """
         cls._initial_state = deepcopy(instance)
+
+    @property
+    def checkpoint(self) -> bool:
+        """Getter for the checkpoint attribute.
+
+        Returns:
+            bool: The current value of the checkpoint.
+        """
+        return self._checkpoint
+
+    @checkpoint.setter
+    def checkpoint(self, value: bool) -> None:
+        """Setter for the checkpoint attribute.
+
+        Args:
+            value (bool): The new value for the checkpoint.
+
+        Raises:
+            ValueError: If the provided value is not a boolean.
+        """
+        if not isinstance(value, bool):
+            raise ValueError("checkpoint must be a boolean value.")
+        self._checkpoint = value
 
     def run(self) -> None:
         """Starts the execution of the flow."""
@@ -162,7 +197,6 @@ class FLSpec:
             setattr(self, name, deepcopy(attr))
 
         self._foreach_methods = flspec_obj._foreach_methods
-        self.execute_task_args = flspec_obj.execute_task_args
 
     def get_flow_state(self) -> FLSpec:
         """

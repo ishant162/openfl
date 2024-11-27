@@ -27,16 +27,18 @@ class Director:
         private_key (Optional[Union[Path, str]]): The path to the private key for TLS.
         certificate (Optional[Union[Path, str]]): The path to the certificate for TLS.
         director_config (Optional[Path]): Path to director_config file
-        envoy_health_check_period (int): The period for health check of envoys
-            in seconds.
         install_requirements (bool): A flag indicating if the requirements
             should be installed.
+        _flow_status (Queue): Stores the flow status
         experiments_registry (ExperimentsRegistry): An object of
             ExperimentsRegistry to store the experiments.
-        col_exp_queues (defaultdict): A defaultdict to store the experiment
-            queues for collaborators.
         col_exp (dict): A dictionary to store the experiments for
             collaborators.
+        col_exp_queues (defaultdict): A defaultdict to store the experiment
+            queues for collaborators.
+        _envoy_registry (dict): A dcitionary to store envoy info
+        envoy_health_check_period (int): The period for health check of envoys
+            in seconds.
         authorized_cols (list): A list of authorized envoys
     """
 
@@ -72,7 +74,7 @@ class Director:
         self.certificate = certificate
         self.director_config = director_config
         self.install_requirements = install_requirements
-        self._flow_status = []
+        self._flow_status = asyncio.Queue()
 
         self.experiments_registry = ExperimentsRegistry()
         self.col_exp = {}
@@ -104,7 +106,8 @@ class Director:
                         queue = self.col_exp_queues[col_name]
                         await queue.put(experiment.name)
                     # Wait for the experiment to complete and save the result
-                    self._flow_status = await run_aggregator_future
+                    flow_status = await run_aggregator_future
+                    await self._flow_status.put(flow_status)
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
                 raise
@@ -128,13 +131,7 @@ class Director:
             status (bool): The flow status.
             flspec_obj (bytes): A serialized FLSpec object (in bytes) using pickle.
         """
-        while not self._flow_status:
-            await asyncio.sleep(10)
-
-        status, flspec_obj = self._flow_status
-        # Reset flow status
-        self._flow_status = []
-        # Return flow_status when the status is FINISHED
+        status, flspec_obj = await self._flow_status.get()
         return status, pickle.dumps(flspec_obj)
 
     async def wait_experiment(self, envoy_name: str) -> str:
@@ -294,6 +291,7 @@ class Director:
         """
         envoy_info = self._envoy_registry.get(envoy_name)
         if not envoy_info:
+            logger.error(f"Unknown envoy {envoy_name}")
             raise EnvoyNotFoundError(f"Unknown envoy {envoy_name}")
 
         envoy_info.update(
