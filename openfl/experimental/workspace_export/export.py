@@ -51,6 +51,7 @@ class WorkspaceExport:
             raise FileNotFoundError(f"The Jupyter notebook at {notebook_path} does not exist.")
 
         self.output_workspace_path = Path(output_workspace).resolve()
+        # Regenerate the workspace if it already exists
         if self.output_workspace_path.exists():
             shutil.rmtree(self.output_workspace_path)
         self.output_workspace_path.parent.mkdir(parents=True, exist_ok=True)

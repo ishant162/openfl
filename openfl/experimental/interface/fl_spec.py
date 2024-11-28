@@ -102,67 +102,6 @@ class FLSpec:
             raise ValueError("checkpoint must be a boolean value.")
         self._checkpoint = value
 
-    def run(self) -> None:
-        """Starts the execution of the flow."""
-
-        # Submit flow to Runtime
-        if str(self._runtime) == "LocalRuntime":
-            self._metaflow_interface = MetaflowInterface(self.__class__, self.runtime.backend)
-            self._run_id = self._metaflow_interface.create_run()
-            # Initialize aggregator private attributes
-            self.runtime.initialize_aggregator()
-            self._foreach_methods = []
-            FLSpec._reset_clones()
-            FLSpec._create_clones(self, self.runtime.collaborators)
-            # Initialize collaborator private attributes
-            self.runtime.initialize_collaborators()
-            if self._checkpoint:
-                print(f"Created flow {self.__class__.__name__}")
-            try:
-                # Execute all Participant (Aggregator & Collaborator) tasks and
-                # retrieve the final attributes
-                # start step is the first task & invoked on aggregator through
-                # runtime.execute_task
-                final_attributes = self.runtime.execute_task(
-                    self,
-                    self.start,
-                )
-            except Exception as e:
-                if "cannot pickle" in str(e) or "Failed to unpickle" in str(e):
-                    msg = (
-                        "\nA serialization error was encountered that could not"
-                        "\nbe handled by the ray backend."
-                        "\nTry rerunning the flow without ray as follows:\n"
-                        "\nLocalRuntime(...,backend='single_process')\n"
-                        "\n or for more information about the original error,"
-                        "\nPlease see the official Ray documentation"
-                        "\nhttps://docs.ray.io/en/releases-2.2.0/ray-core/\
-                        objects/serialization.html"
-                    )
-                    raise SerializationError(str(e) + msg)
-                else:
-                    raise e
-            for name, attr in final_attributes:
-                setattr(self, name, attr)
-        elif str(self._runtime) == "FederatedRuntime":
-            try:
-                # Prepare workspace and submit it for the FederatedRuntime
-                archive_path, exp_name = self.runtime.prepare_workspace_archive()
-                self.runtime.submit_experiment(archive_path, exp_name)
-                # Stream the experiment's stdout if the checkpoint is enabled
-                if self._checkpoint:
-                    self.runtime.stream_experiment_stdout(exp_name)
-                # Retrieve the flspec object to update the experiment state
-                flspec_obj = self.get_flow_state()
-                # Update state of self
-                self._update_from_flspec_obj(flspec_obj)
-            except Exception as e:
-                raise Exception(
-                    f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
-                )
-        else:
-            raise Exception("Runtime not implemented")
-
     @property
     def runtime(self) -> Type[Union[LocalRuntime, FederatedRuntime]]:
         """Returns flow runtime.
@@ -186,6 +125,81 @@ class FLSpec:
             raise TypeError(f"{runtime} is not a valid OpenFL Runtime")
         self._runtime = runtime
 
+    def run(self) -> None:
+        """Starts the execution of the flow."""
+        # Submit flow to Runtime
+        if str(self._runtime) == "LocalRuntime":
+            self._run_local()
+        elif str(self._runtime) == "FederatedRuntime":
+            self._run_federated()
+        else:
+            raise Exception("Runtime not implemented")
+
+    def _run_local(self) -> None:
+        """Executes the flow using LocalRuntime."""
+        self._setup_initial_state()
+        try:
+            # Execute all Participant (Aggregator & Collaborator) tasks and
+            # retrieve the final attributes
+            # start step is the first task & invoked on aggregator through
+            # runtime.execute_task
+            final_attributes = self.runtime.execute_task(
+                self,
+                self.start,
+            )
+        except Exception as e:
+            if "cannot pickle" in str(e) or "Failed to unpickle" in str(e):
+                msg = (
+                    "\nA serialization error was encountered that could not"
+                    "\nbe handled by the ray backend."
+                    "\nTry rerunning the flow without ray as follows:\n"
+                    "\nLocalRuntime(...,backend='single_process')\n"
+                    "\n or for more information about the original error,"
+                    "\nPlease see the official Ray documentation"
+                    "\nhttps://docs.ray.io/en/releases-2.2.0/ray-core/\
+                    objects/serialization.html"
+                )
+                raise SerializationError(str(e) + msg)
+            else:
+                raise e
+        for name, attr in final_attributes:
+            setattr(self, name, attr)
+
+    def _setup_initial_state(self) -> None:
+        """
+        Sets up the flow's initial state, initializing private attributes for
+        collaborators and aggregators.
+        """
+        self._metaflow_interface = MetaflowInterface(self.__class__, self.runtime.backend)
+        self._run_id = self._metaflow_interface.create_run()
+        # Initialize aggregator private attributes
+        self.runtime.initialize_aggregator()
+        self._foreach_methods = []
+        FLSpec._reset_clones()
+        FLSpec._create_clones(self, self.runtime.collaborators)
+        # Initialize collaborator private attributes
+        self.runtime.initialize_collaborators()
+        if self._checkpoint:
+            print(f"Created flow {self.__class__.__name__}")
+
+    def _run_federated(self) -> None:
+        """Executes the flow using FederatedRuntime."""
+        try:
+            # Prepare workspace and submit it for the FederatedRuntime
+            archive_path, exp_name = self.runtime.prepare_workspace_archive()
+            self.runtime.submit_experiment(archive_path, exp_name)
+            # Stream the experiment's stdout if the checkpoint is enabled
+            if self._checkpoint:
+                self.runtime.stream_experiment_stdout(exp_name)
+            # Retrieve the flspec object to update the experiment state
+            flspec_obj = self.get_flow_state()
+            # Update state of self
+            self._update_from_flspec_obj(flspec_obj)
+        except Exception as e:
+            raise Exception(
+                f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
+            )
+
     def _update_from_flspec_obj(self, flspec_obj: FLSpec) -> None:
         """Update self with attributes from the generated flspec object.
 
@@ -198,13 +212,13 @@ class FLSpec:
 
         self._foreach_methods = flspec_obj._foreach_methods
 
-    def get_flow_state(self) -> FLSpec:
+    def get_flow_state(self) -> Union[FLSpec, None]:
         """
         Gets the updated flow state.
 
         Returns:
-            flspec_obj: An updated FLSpec instance if the experiment runs successfully.
-                        None if the experiment could not run.
+            flspec_obj (Union[FLSpec, None]): An updated FLSpec instance if the experiment
+                runs successfully. None if the experiment could not run.
         """
         status, flspec_obj = self.runtime.get_flow_state()
         if status:

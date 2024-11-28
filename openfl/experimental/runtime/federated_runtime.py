@@ -56,11 +56,8 @@ class FederatedRuntime(Runtime):
             tls (bool): Whether to use TLS for the connection.
         """
         super().__init__()
-        if aggregator is not None:
-            self.aggregator = aggregator
-
-        if collaborators is not None:
-            self.collaborators = collaborators
+        self._aggregator = aggregator
+        self.__collaborators = collaborators
 
         self.tls = tls
         if director:
@@ -76,8 +73,8 @@ class FederatedRuntime(Runtime):
         self.experiment_submitted = False
         self.generated_workspace_path = Path("./generated_workspace").resolve()
 
-    @classmethod
-    def remove_workspace_archive(self, archive_path) -> None:
+    @staticmethod
+    def remove_workspace_archive(archive_path) -> None:
         """
         Removes workspace archive
 
@@ -89,12 +86,12 @@ class FederatedRuntime(Runtime):
 
     @property
     def aggregator(self) -> Optional[str]:
-        """Returns name of _aggregator."""
+        """Get the name of the aggregator."""
         return self._aggregator
 
     @aggregator.setter
     def aggregator(self, aggregator_name: str) -> None:
-        """Set LocalRuntime _aggregator.
+        """Set the aggregator name.
 
         Args:
             aggregator_name (str): The name of the aggregator to
@@ -104,7 +101,7 @@ class FederatedRuntime(Runtime):
 
     @property
     def collaborators(self) -> List[str]:
-        """Return names of collaborators.
+        """Get the names of collaborators.
 
         Don't give direct access to private attributes.
 
@@ -115,7 +112,7 @@ class FederatedRuntime(Runtime):
 
     @collaborators.setter
     def collaborators(self, collaborators: List[str]) -> None:
-        """Set LocalRuntime collaborators.
+        """Set the collaborators.
 
         Args:
             collaborators (List[str]): The list of
@@ -188,11 +185,13 @@ class FederatedRuntime(Runtime):
             self.experiment_submitted = response.status
 
             if self.experiment_submitted:
-                print(f"Experiment {exp_name} was successfully submitted to the director!")
+                print(
+                    f"\033[92mExperiment {exp_name} was successfully submitted to the director!\033[0m"
+                )
             else:
-                print(f"Failed to submit experiment '{exp_name}' to the director.")
+                print(f"\033[91mFailed to submit experiment '{exp_name}' to the director.\033[0m")
         finally:
-            FederatedRuntime.remove_workspace_archive(archive_path)
+            self.remove_workspace_archive(archive_path)
 
     def get_flow_state(self) -> Tuple[bool, Any]:
         """
@@ -217,8 +216,7 @@ class FederatedRuntime(Runtime):
         Returns:
             envoys: Dictionary containing envoy information.
         """
-        envoys = self._dir_client.get_envoys()
-        return envoys
+        return self._dir_client.get_envoys()
 
     def stream_experiment_stdout(self, experiment_name) -> None:
         """Stream experiment stdout.
@@ -227,6 +225,7 @@ class FederatedRuntime(Runtime):
             experiment_name (str): Name of the experiment.
         """
         if not self.experiment_submitted:
+            print("No experiment has been submitted yet.")
             return
         print(f"Getting standard output for experiment: {experiment_name}...")
         for stdout_message_dict in self._dir_client.stream_experiment_stdout(experiment_name):

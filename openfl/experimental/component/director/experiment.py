@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 from openfl.experimental.federated import Plan
 from openfl.experimental.transport import AggregatorGRPCServer
@@ -40,8 +40,8 @@ class Experiment:
             plan_path (Union[Path, str]): The path to the plan.
             users (Iterable[str]): The list of users.
             status (str): The status of the experiment.
-            aggregator (object): The aggregator object.
-            updated_flow (object): Updated flow object.
+            aggregator (Aggregator): The aggregator object.
+            updated_flow (FLSpec): Updated flow object.
                 Defaults to none.
     """
 
@@ -89,7 +89,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ) -> List[Union[bool, Any]]:
+    ) -> Tuple[bool, Any]:
         """Run experiment.
 
         Args:
@@ -140,7 +140,7 @@ class Experiment:
             logger.error("Experiment %s failed with error: %s.", self.name, e)
             raise
 
-        return [self.status == Status.FINISHED, self.updated_flow]
+        return self.status == Status.FINISHED, self.updated_flow
 
     def _create_aggregator_grpc_server(
         self,

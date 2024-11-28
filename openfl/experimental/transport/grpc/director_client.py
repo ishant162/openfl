@@ -110,11 +110,9 @@ class DirectorClient:
         logger.info("Waiting for an experiment to run...")
         response = self.stub.WaitExperiment(self._get_experiment_data())
         logger.info("New experiment received: %s", response)
-        experiment_name = response.experiment_name
-        if not experiment_name:
-            raise Exception("No experiment")
-
-        return experiment_name
+        if not response.experiment_name:
+            raise ValueError("No experiment name received")
+        return response.experiment_name
 
     def get_experiment_data(self, experiment_name) -> DataStream:
         """
