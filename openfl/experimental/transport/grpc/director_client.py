@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterator, Optional, Tuple, Union  # type: ignore
 
 import grpc
 from grpc._channel import _MultiThreadedRendezvous as DataStream
+from tabulate import tabulate
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -199,27 +200,32 @@ class DirectorClient:
                 yield experiment_info
                 chunk = arch.read(max_buffer_size)
 
-    def get_envoys(self) -> Dict[str, Dict[str, Any]]:
-        """Get envoys info.
+    def get_envoys(self) -> str:
+        """Display envoys info in a tabular format.
 
         Returns:
-            result Dict[str, Dict[str, Any]]: The envoys info.
+            result (str): Envoy status in a tabular format.
         """
+        # Fetch the envoys from the stub
         envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
-        now = datetime.now().strftime(DATETIME_FORMAT)
-        result = {}
+        datetime.now().strftime(DATETIME_FORMAT)
+
+        # Prepare the table headers
+        headers = ["Name", "Online", "Last Updated", "Experiment Running", "Experiment Name"]
+        # Prepare the table rows
+        rows = []
         for envoy in envoys.envoy_infos:
-            result[envoy.envoy_name] = {
-                "name": envoy.envoy_name,
-                "is_online": envoy.is_online or False,
-                "is_experiment_running": envoy.is_experiment_running or False,
-                "last_updated": datetime.fromtimestamp(envoy.last_updated.seconds).strftime(
-                    DATETIME_FORMAT
-                ),
-                "current_time": now,
-                "valid_duration": envoy.valid_duration,
-                "experiment_name": envoy.experiment_name,
-            }
+            rows.append(
+                [
+                    envoy.envoy_name,
+                    "Yes" if envoy.is_online else "No",
+                    datetime.fromtimestamp(envoy.last_updated.seconds).strftime(DATETIME_FORMAT),
+                    "Yes" if envoy.is_experiment_running else "No",
+                    envoy.experiment_name if envoy.experiment_name else "None",
+                ]
+            )
+        # Use tabulate to format the table
+        result = tabulate(rows, headers=headers, tablefmt="grid")
         return result
 
     def get_flow_state(self) -> Tuple:

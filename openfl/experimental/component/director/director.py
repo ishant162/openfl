@@ -5,11 +5,12 @@
 """Director module."""
 import asyncio
 import logging
-import pickle
 import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Tuple, Union
+
+import dill
 
 from openfl.experimental.component.director.experiment import Experiment, ExperimentsRegistry
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -129,10 +130,10 @@ class Director:
 
         Returns:
             status (bool): The flow status.
-            flspec_obj (bytes): A serialized FLSpec object (in bytes) using pickle.
+            flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
         """
         status, flspec_obj = await self._flow_status.get()
-        return status, pickle.dumps(flspec_obj)
+        return status, dill.dumps(flspec_obj)
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.

@@ -209,6 +209,7 @@ class Plan:
 
         settings.update(**override)
         module = import_module(module_path)
+        module = reload(module)
 
         if Plan.accept_args(getattr(module, class_name)):
             args = list(settings.values())

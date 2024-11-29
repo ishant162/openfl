@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 import os
-import pickle
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import dill
 
 from openfl.experimental.runtime.runtime import Runtime
 from openfl.experimental.transport.grpc.director_client import DirectorClient
@@ -206,17 +208,19 @@ class FederatedRuntime(Runtime):
         # Append generated workspace path to sys.path
         # to allow unpickling of flspec_obj
         sys.path.append(str(self.generated_workspace_path))
-        flow_object = pickle.loads(flspec_obj)
+        flow_object = dill.loads(flspec_obj)
 
         return status, flow_object
 
-    def get_envoys(self) -> Dict[str, Any]:
-        """Gets Envoys
-
-        Returns:
-            envoys: Dictionary containing envoy information.
-        """
-        return self._dir_client.get_envoys()
+    def get_envoys(self) -> None:
+        """Prints the status of Envoys in a formatted way."""
+        # Fetch envoy data
+        envoys = self._dir_client.get_envoys()
+        # Display the current timestamp
+        print(
+            f"Status of Envoys connected to " f"Federation at: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+        )
+        print(envoys)
 
     def stream_experiment_stdout(self, experiment_name) -> None:
         """Stream experiment stdout.

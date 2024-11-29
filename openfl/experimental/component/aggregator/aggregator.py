@@ -5,12 +5,13 @@
 """Experimental Aggregator module."""
 import asyncio
 import inspect
-import pickle
 import queue
 import time
 from logging import getLogger
 from threading import Event
 from typing import Any, Callable, Dict, List, Tuple
+
+import dill
 
 from openfl.experimental.interface import FLSpec
 from openfl.experimental.runtime import FederatedRuntime
@@ -265,14 +266,14 @@ class Aggregator:
         # Perform checkpoint if enabled
         if self.checkpoint:
             if not isinstance(ctx, FLSpec):
-                ctx = pickle.loads(ctx)
+                ctx = dill.loads(ctx)
                 # Update metaflow interface object
                 ctx._metaflow_interface = self.flow._metaflow_interface
             # Deserialize objects if passed in serialized form
             if not isinstance(f, Callable):
-                f = pickle.loads(f)
+                f = dill.loads(f)
             if stream_buffer and isinstance(stream_buffer, bytes):
-                setattr(f.__func__, "_stream_buffer", pickle.loads(stream_buffer))
+                setattr(f.__func__, "_stream_buffer", dill.loads(stream_buffer))
 
             # Retrieve and log stdout
             stdout, _ = f._stream_buffer.get_stdstream()
@@ -335,7 +336,7 @@ class Aggregator:
         return (
             self.current_round,
             next_step,
-            pickle.dumps(clone),
+            dill.dumps(clone),
             0,
             self.time_to_quit,
         )
@@ -461,7 +462,7 @@ class Aggregator:
                 f"Collaborator {collab_name} sent task results" f" for round {round_number}."
             )
         # Unpickle the clone (FLSpec object)
-        clone = pickle.loads(clone_bytes)
+        clone = dill.loads(clone_bytes)
         # Update the clone in clones_dict dictionary
         self.clones_dict[clone.input] = clone
         self.next_step = next_step[0]
