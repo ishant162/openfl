@@ -4,13 +4,11 @@
 """Director clients module."""
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple, Union  # type: ignore
 
 import grpc
 from grpc._channel import _MultiThreadedRendezvous as DataStream
-from tabulate import tabulate
 
 from openfl.experimental.protocols import director_pb2, director_pb2_grpc
 from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
@@ -18,8 +16,6 @@ from openfl.experimental.transport.grpc.exceptions import EnvoyNotFoundError
 from .grpc_channel_options import channel_options
 
 logger = logging.getLogger(__name__)
-
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 class DirectorClient:
@@ -200,33 +196,15 @@ class DirectorClient:
                 yield experiment_info
                 chunk = arch.read(max_buffer_size)
 
-    def get_envoys(self) -> str:
+    def get_envoys(self) -> director_pb2.GetEnvoysRequest:
         """Display envoys info in a tabular format.
 
         Returns:
-            result (str): Envoy status in a tabular format.
+            envoys (director_pb2.GetEnvoysResponse): The envoy status response
+                from the gRPC server.
         """
-        # Fetch the envoys from the stub
         envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
-        datetime.now().strftime(DATETIME_FORMAT)
-
-        # Prepare the table headers
-        headers = ["Name", "Online", "Last Updated", "Experiment Running", "Experiment Name"]
-        # Prepare the table rows
-        rows = []
-        for envoy in envoys.envoy_infos:
-            rows.append(
-                [
-                    envoy.envoy_name,
-                    "Yes" if envoy.is_online else "No",
-                    datetime.fromtimestamp(envoy.last_updated.seconds).strftime(DATETIME_FORMAT),
-                    "Yes" if envoy.is_experiment_running else "No",
-                    envoy.experiment_name if envoy.experiment_name else "None",
-                ]
-            )
-        # Use tabulate to format the table
-        result = tabulate(rows, headers=headers, tablefmt="grid")
-        return result
+        return envoys
 
     def get_flow_state(self) -> Tuple:
         """

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import dill
+from tabulate import tabulate
 
 from openfl.experimental.runtime.runtime import Runtime
 from openfl.experimental.transport.grpc.director_client import DirectorClient
@@ -216,11 +217,28 @@ class FederatedRuntime(Runtime):
         """Prints the status of Envoys in a formatted way."""
         # Fetch envoy data
         envoys = self._dir_client.get_envoys()
+        DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+        datetime.now().strftime(DATETIME_FORMAT)
+
+        # Prepare the table headers
+        headers = ["Name", "Online", "Last Updated", "Experiment Running", "Experiment Name"]
+        # Prepare the table rows
+        rows = []
+        for envoy in envoys.envoy_infos:
+            rows.append(
+                [
+                    envoy.envoy_name,
+                    "Yes" if envoy.is_online else "No",
+                    datetime.fromtimestamp(envoy.last_updated.seconds).strftime(DATETIME_FORMAT),
+                    "Yes" if envoy.is_experiment_running else "No",
+                    envoy.experiment_name if envoy.experiment_name else "None",
+                ]
+            )
+        # Use tabulate to format the table
+        result = tabulate(rows, headers=headers, tablefmt="grid")
         # Display the current timestamp
-        print(
-            f"Status of Envoys connected to " f"Federation at: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
-        )
-        print(envoys)
+        print(f"Status of Envoys connected to Federation at: {DATETIME_FORMAT}\n")
+        print(result)
 
     def stream_experiment_stdout(self, experiment_name) -> None:
         """Stream experiment stdout.
