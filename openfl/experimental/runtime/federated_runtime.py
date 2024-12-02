@@ -27,9 +27,9 @@ class FederatedRuntime(Runtime):
     """FederatedRuntime class, derived from Runtime class.
 
     Attributes:
-        aggregator (Optional[str]): Name of the aggregator. Defaults to
+        _aggregator (Optional[str]): Name of the aggregator. Defaults to
                 None.
-        collaborators (Optional[List[str]]): List of Authorized collaborators
+        __collaborators (Optional[List[str]]): List of Authorized collaborators
         tls (bool): A flag indicating if TLS should be used for
             connections. Defaults to False.
         director (Optional[Dict[str, Any]]): Dictionary containing director info.

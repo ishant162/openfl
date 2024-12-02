@@ -209,6 +209,7 @@ class Plan:
 
         settings.update(**override)
         module = import_module(module_path)
+        # Reload the module to ensure the flow is rebuilt with updated changes
         module = reload(module)
 
         if Plan.accept_args(getattr(module, class_name)):
@@ -238,8 +239,7 @@ class Plan:
             extra={"markup": True},
         )
         module = import_module(module_path)
-        # FIXME: The module needs to be reloaded to ensure private attributes
-        # are downloaded again upon import. Investigate a more efficient solution.
+        # FIXME: Reload module to refresh private attributes; optimize this.
         module = reload(module)
         instance = getattr(module, class_name)
 

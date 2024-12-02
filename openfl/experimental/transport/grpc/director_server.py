@@ -165,6 +165,78 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         client_id = headers.get("client_id", CLIENT_ID_DEFAULT)
         return client_id
 
+    def EnvoyConnectionRequest(self, request, context) -> director_pb2.RequestAccepted:
+        """Handles a connection request from an Envoy.
+
+        Args:
+            request (director_pb2.ConnectEnvoyRequest): The request from
+                the envoy
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            director_pb2.RequestAccepted: Indicating if connection was accepted
+        """
+        logger.info(f"Envoy {request.envoy_name} is attempting to connect")
+        is_accepted = self.director.ack_envoy_connection_request(request.envoy_name)
+        if is_accepted:
+            logger.info(f"Envoy {request.envoy_name} is connected")
+
+        return director_pb2.RequestAccepted(accepted=is_accepted)
+
+    async def UpdateEnvoyStatus(self, request, context) -> director_pb2.UpdateEnvoyStatusResponse:
+        """Accept health check from envoy.
+
+        Args:
+            request (director_pb2.UpdateEnvoyStatusRequest): The request from
+                the envoy.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            resp (director_pb2.UpdateEnvoyStatusResponse): The response to the
+                request.
+        """
+        logger.debug("Updating envoy status: %s", request)
+        try:
+            health_check_period = self.director.update_envoy_status(
+                envoy_name=request.name,
+                is_experiment_running=request.is_experiment_running,
+            )
+        except EnvoyNotFoundError as exc:
+            logger.error(exc)
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        else:
+            resp = director_pb2.UpdateEnvoyStatusResponse()
+            resp.health_check_period.seconds = health_check_period
+
+            return resp
+
+    async def GetEnvoys(self, request, context) -> director_pb2.GetEnvoysResponse:
+        """Get status of connected envoys.
+
+        Args:
+            request (director_pb2.GetEnvoysRequest): The request from
+                the envoy.
+            context (grpc.ServicerContext): The context of the request.
+
+        Returns:
+            director_pb2.GetEnvoysResponse: The response to the request.
+        """
+        envoy_infos = self.director.get_envoys()
+        envoy_statuses = []
+        for envoy_name, envoy_info in envoy_infos.items():
+            envoy_info_message = director_pb2.EnvoyInfo(
+                envoy_name=envoy_name,
+                is_online=envoy_info["is_online"],
+                is_experiment_running=envoy_info["is_experiment_running"],
+                experiment_name=envoy_info["experiment_name"],
+            )
+            envoy_info_message.valid_duration.seconds = envoy_info["valid_duration"]
+            envoy_info_message.last_updated.seconds = int(envoy_info["last_updated"])
+
+            envoy_statuses.append(envoy_info_message)
+
+        return director_pb2.GetEnvoysResponse(envoy_infos=envoy_statuses)
+
     async def GetExperimentData(
         self, request, context
     ) -> AsyncIterator[director_pb2.ExperimentData]:
@@ -241,78 +313,6 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
 
         logger.info("Experiment %s registered", request.name)
         return director_pb2.SetNewExperimentResponse(status=is_accepted)
-
-    def EnvoyConnectionRequest(self, request, context) -> director_pb2.RequestAccepted:
-        """Handles a connection request from an Envoy.
-
-        Args:
-            request (director_pb2.ConnectEnvoyRequest): The request from
-                the envoy
-            context (grpc.ServicerContext): The context of the request.
-
-        Returns:
-            director_pb2.RequestAccepted: Indicating if connection was accepted
-        """
-        logger.info(f"Envoy {request.envoy_name} is attempting to connect")
-        is_accepted = self.director.ack_envoy_connection_request(request.envoy_name)
-        if is_accepted:
-            logger.info(f"Envoy {request.envoy_name} is connected")
-
-        return director_pb2.RequestAccepted(accepted=is_accepted)
-
-    async def UpdateEnvoyStatus(self, request, context) -> director_pb2.UpdateEnvoyStatusResponse:
-        """Accept health check from envoy.
-
-        Args:
-            request (director_pb2.UpdateEnvoyStatusRequest): The request from
-                the envoy.
-            context (grpc.ServicerContext): The context of the request.
-
-        Returns:
-            resp (director_pb2.UpdateEnvoyStatusResponse): The response to the
-                request.
-        """
-        logger.debug("Updating envoy status: %s", request)
-        try:
-            health_check_period = self.director.update_envoy_status(
-                envoy_name=request.name,
-                is_experiment_running=request.is_experiment_running,
-            )
-        except EnvoyNotFoundError as exc:
-            logger.error(exc)
-            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
-        else:
-            resp = director_pb2.UpdateEnvoyStatusResponse()
-            resp.health_check_period.seconds = health_check_period
-
-            return resp
-
-    async def GetEnvoys(self, request, context) -> director_pb2.GetEnvoysResponse:
-        """Get status of connected envoys.
-
-        Args:
-            request (director_pb2.GetEnvoysRequest): The request from
-                the envoy.
-            context (grpc.ServicerContext): The context of the request.
-
-        Returns:
-            director_pb2.GetEnvoysResponse: The response to the request.
-        """
-        envoy_infos = self.director.get_envoys()
-        envoy_statuses = []
-        for envoy_name, envoy_info in envoy_infos.items():
-            envoy_info_message = director_pb2.EnvoyInfo(
-                envoy_name=envoy_name,
-                is_online=envoy_info["is_online"],
-                is_experiment_running=envoy_info["is_experiment_running"],
-                experiment_name=envoy_info["experiment_name"],
-            )
-            envoy_info_message.valid_duration.seconds = envoy_info["valid_duration"]
-            envoy_info_message.last_updated.seconds = int(envoy_info["last_updated"])
-
-            envoy_statuses.append(envoy_info_message)
-
-        return director_pb2.GetEnvoysResponse(envoy_infos=envoy_statuses)
 
     async def GetFlowState(self, request, context) -> director_pb2.GetFlowStateResponse:
         """Get updated flow after experiment is finished.
