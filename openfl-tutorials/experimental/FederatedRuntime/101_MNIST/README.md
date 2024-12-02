@@ -22,7 +22,7 @@
    - Navigate to the tutorial:
     
    ```sh
-   cd openfl/openfl-tutorials/experimental/workflow/FederatedRuntime/101_MNIST_FederatedRuntime
+   cd openfl/openfl-tutorials/experimental/workflow/FederatedRuntime/101_MNIST/
    ```
 
 <br/>

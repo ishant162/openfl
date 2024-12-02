@@ -6,11 +6,7 @@ from copy import deepcopy
 import torch
 import torchvision
 
-random_seed = 1
-torch.backends.cudnn.enabled = False
-torch.manual_seed(random_seed)
-torch.use_deterministic_algorithms(True)
-
+# Download Train and Test datasets
 mnist_train = torchvision.datasets.MNIST(
     "../files/",
     train=True,
@@ -35,41 +31,19 @@ mnist_test = torchvision.datasets.MNIST(
     ),
 )
 
-
-n_collaborators = 4
+# shard the dataset according to collaborator index
+n_collaborators = 2
 batch_size = 32
 
 train = deepcopy(mnist_train)
 test = deepcopy(mnist_test)
 
-# train.data = mnist_train.data[1::n_collaborators]
-# train.targets = mnist_train.targets[1::n_collaborators]
-# test.data = mnist_test.data[1::n_collaborators]
-# test.targets = mnist_test.targets[1::n_collaborators]
-
-train.data = mnist_train.data[1:10000:n_collaborators]
-train.targets = mnist_train.targets[1:10000:n_collaborators]
-test.data = mnist_test.data[1:1000:n_collaborators]
-test.targets = mnist_test.targets[1:1000:n_collaborators]
-
-import random 
-import numpy as np
-
-def seed_worker(worker_id):
-    # worker_seed = torch.initial_seed() % 2**32
-    # np.random.seed(worker_seed)
-    # random.seed(worker_seed)
-    np.random.seed(0)
-    random.seed(0)
-
-g = torch.Generator()
-g.manual_seed(0)
+train.data = mnist_train.data[1::n_collaborators]
+train.targets = mnist_train.targets[1::n_collaborators]
+test.data = mnist_test.data[1::n_collaborators]
+test.targets = mnist_test.targets[1::n_collaborators]
 
 collaborator_private_attrs = {
-    "train_loader": torch.utils.data.DataLoader(
-        train, batch_size=batch_size, shuffle=False,num_workers=1, worker_init_fn=seed_worker,generator=g
-    ),
-    "test_loader": torch.utils.data.DataLoader(
-        test, batch_size=batch_size, shuffle=False,num_workers=1, worker_init_fn=seed_worker,generator=g
-    ),
+    "train_loader": torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=False),
+    "test_loader": torch.utils.data.DataLoader(test, batch_size=batch_size, shuffle=False),
 }
