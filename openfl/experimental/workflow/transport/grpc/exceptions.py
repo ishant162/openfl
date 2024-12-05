@@ -7,3 +7,7 @@
 
 class EnvoyNotFoundError(Exception):
     """Indicates that director has no information about that Envoy."""
+
+
+class DirectorServiceUnavailable(Exception):
+    """Indicates that directory (server) service is unavailable"""

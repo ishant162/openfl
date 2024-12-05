@@ -11,7 +11,10 @@ import grpc
 from grpc._channel import _MultiThreadedRendezvous as DataStream
 
 from openfl.experimental.workflow.protocols import director_pb2, director_pb2_grpc
-from openfl.experimental.workflow.transport.grpc.exceptions import EnvoyNotFoundError
+from openfl.experimental.workflow.transport.grpc.exceptions import (
+    DirectorServiceUnavailable,
+    EnvoyNotFoundError,
+)
 
 from .grpc_channel_options import channel_options
 
@@ -196,15 +199,32 @@ class DirectorClient:
                 yield experiment_info
                 chunk = arch.read(max_buffer_size)
 
-    def get_envoys(self) -> director_pb2.GetEnvoysRequest:
+    def get_envoys(self) -> director_pb2.GetEnvoysResponse:
         """Display envoys info in a tabular format.
 
         Returns:
             envoys (director_pb2.GetEnvoysResponse): The envoy status response
                 from the gRPC server.
+
+        Raises:
+            DirectorServiceUnavailable: If the Director service is unavailable.
+            RuntimeError: For any other unexpected errors.
         """
-        envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
-        return envoys
+        try:
+            envoys = self.stub.GetEnvoys(director_pb2.GetEnvoysRequest())
+            return envoys
+
+        except grpc.RpcError as rpc_error:
+            # Handling grpc errors
+            if rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
+                logger.error("Director maybe offline. Please ensure the Director is online.")
+                # Raise custom expection if director is offline
+                raise DirectorServiceUnavailable("Director service is unavailable") from None
+
+        except Exception as e:
+            # General exception handling
+            logger.error(f"Unexpected error occurred: {str(e)}")
+            raise RuntimeError(f"Unexpected error: {str(e)}") from e
 
     def get_flow_state(self) -> Tuple:
         """
