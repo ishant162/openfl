@@ -9,5 +9,5 @@ class EnvoyNotFoundError(Exception):
     """Indicates that director has no information about that Envoy."""
 
 
-class DirectorServiceUnavailable(Exception):
-    """Indicates that directory (server) service is unavailable"""
+class DirectorServiceError(Exception):
+    """Exception raised for errors occurring when retrieving envoys information."""
