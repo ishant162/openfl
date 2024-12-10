@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class EnvoyClient:
-    """Director client class for experiment managers/envoys.
+    """Envoy client class for envoys.
 
     This class communicates with the director to manage the envoys
     participation in the federation.
@@ -46,7 +46,7 @@ class EnvoyClient:
         certificate: Optional[Union[Path, str]] = None,
     ) -> None:
         """
-        Initialize director client object.
+        Initialize envoy client object.
 
         Args:
             director_host (str): The host name for Director server.
@@ -178,6 +178,8 @@ class EnvoyClient:
 
 class FederatedRuntimeClient:
     """
+    FederatedRuntimeclient class for experiment manager.
+
     This class communicates with the director to manage the user's
     participation in the federation.
 
@@ -197,7 +199,7 @@ class FederatedRuntimeClient:
         certificate: Optional[Union[Path, str]] = None,
     ) -> None:
         """
-        Initialize FederatedRnuntimeClient object.
+        Initialize FederatedRuntimeClient object.
 
         Args:
             director_host (str): The host name for Director server.
