@@ -9,7 +9,7 @@ Workflow Interface
 
 **Important Note**
 
-The OpenFL workflow interface is experimental, subject to change, and is currently limited to single node execution. To setup and launch a real federation, see `Features <../features.rst>`_
+The OpenFL workflow interface is experimental and subject to change. For an overview of options supported to setup Federation and run FL experiments, see `Features <../features.rst>`_
 
 What is it?
 ===========
@@ -23,7 +23,7 @@ A new OpenFL interface that gives significantly more flexility to researchers in
 There are several modifications we make in our reimagined version of this interface that are necessary for federated learning:
 
 1. *Placement*: Metaflow's `@step` decorator is replaced by placement decorators that specify where a task will run. In horizontal federated learning, there are server (or aggregator) and client (or collaborator) nodes. Tasks decorated by `@aggregator` will run on the aggregator node, and `@collaborator` will run on the collaborator node. These placement decorators are interpreted by *Runtime* implementations: these do the heavy lifting of figuring out how to get the state of the current task to another process or node. 
-2. *Runtime*: Each flow has a `.runtime` attribute. The runtime encapsulates the details of the infrastucture where the flow will run. In this experimental release, we support only a `LocalRuntime` single node implementation, but as this work matures, we will extend to a `FederatedRuntime` that implements distributed operation across remote infrastructure.
+2. *Runtime*: Each flow has a `.runtime` attribute. The runtime encapsulates the details of the infrastucture where the flow will run. We support the LocalRuntime for simulating experiments on local node and FederatedRuntime to launch experiments on distributed infrastructure.
 3. *Conditional branches*: Perform different tasks if a criteria is met
 4. *Loops*: Internal loops are within a flow; this is necessary to support rounds of training where the same sequence of tasks is performed repeatedly.   
 
@@ -142,7 +142,18 @@ The workflow interface formulates the experiment as a series of tasks, or a flow
 Runtimes
 ========
 
-A :code:`Runtime` defines where the flow will be executed, who the participants are in the experiment, and the private information that each participant has access to. In this experimental release, single node execution is supported using the :code:`LocalRuntime`. Let's see how a :code:`LocalRuntime` is created.
+A :code:`Runtime` defines where the flow will be executed, who the participants are in the experiment, and the private information that each participant has access to. In the current experimental release:
+
+* Single node execution is supported using the :code:`LocalRuntime`.
+* Distributed node execution is supported using the :code:`FederatedRuntime`.
+
+Let us see how :code:`LocalRuntime` and :code:`FederatedRuntime` are created.
+
+
+LocalRuntime
+---------------
+
+You can simulate a Federated Learning experiment locally using :code:`LocalRuntime`, which supports single-node execution.. Let's see how a :code:`LocalRuntime` is created.
 
 .. code-block:: python
 
@@ -214,7 +225,7 @@ In rare cases this can be a problem because certain python objects cannot be ser
 
 Participant *private attributes* are returned by the callback function in form of a dictionary, where the key is the name of the attribute and the value is the object. In this example callback function :code:`callable_to_initialize_collaborator_private_attributes()` returns :code:`train_loader` and :code:`test_loader` in the form of a dictionary.
 
-**Note:**If both callable and private attributes are provided, the initialization will prioritize the private attributes through the :code:`callable` function.
+**Note:** If both callable and private attributes are provided, the initialization will prioritize the private attributes through the :code:`callable` function.
 
 Some important points to remember while creating callback function and private attributes are:
 
@@ -241,8 +252,8 @@ Now let's see how the runtime for a flow is assigned, and the flow gets run:
     
 And that's it! This will run an instance of the :code:`FederatedFlow` on a single node in a single process. 
 
-Runtime Backends
-================
+LocalRuntime Backends
+---------------------
 
 The Runtime defines where code will run, but the Runtime has a :code:`Backend` - which defines the underlying implementation of *how* the flow will be executed. :code:`single_process` is the default in the :code:`LocalRuntime`: it executes all code sequentially within a single python process, and is well suited to run both on high spec and low spec hardware
 
@@ -281,6 +292,150 @@ In the above example, we have used :code:`num_gpus=0.2` while instantiating Aggr
 
 **Note:** It is not necessary to have ALL the participants use GPUs. For e.g. only the Collaborator are allocated to GPUs. In this scenario user should ensure that the artifacts returned by Collaborators to Aggregator (e.g. locally trained model object) should be loaded back to CPU before exiting the collaborator step (i.e. before the join step). As Tensorflow manages the object allocation by default therefore this step is needed only for Pytorch.
 
+FederatedRuntime
+----------------
+
+The :code:`FederatedRuntime` facilitates distributed execution across long lived components - Director & Envoys. It allows Data scientists to deploy the experiment from the Jupyter notebook. Let’s explore the process of creating a :code:`FederatedRuntime`.
+
+First step is to create the participants in the Federation: the Director and Envoys
+
+**Director: The central node in the Federation**
+
+The `fx director start` command is used to start the Director. You can run it with or without TLS, depending on your setup.
+
+**With TLS:**
+Use the following command:
+
+.. code-block:: console
+
+    $ fx director start -c <path_to_director_config_yaml_file> -rc <root_certificate_path> -pk <private_key_path> -oc <api_certificate_path>
+
+**Without TLS:**
+Use the following command:
+
+.. code-block:: console
+
+    $ fx director start --disable-tls -c <path_to_director_config_yaml_file>
+
+**Explanation of Command Options**
+
+- `-c <path_to_director_config_yaml_file>`: Path to the Director's configuration file.
+- `-rc <root_certificate_path>`: Path to the root certificate (used with TLS).
+- `-pk <private_key_path>`: Path to the private key file (used with TLS).
+- `-oc <api_certificate_path>`: Path to the API certificate file (used with TLS).
+- `--disable-tls`: Disables TLS encryption.
+
+**Configuration File**
+The Director requires a configuration file in YAML format. This file contains essential settings such as:
+
+- Hostname (`listen_host`)
+- Port (`listen_port`)
+- Envoy health check period (`envoy_health_check_period`)
+- Private attributes for the aggregator
+
+An example configuration file `director_config.yaml` is shown below:
+
+.. code-block:: yaml
+
+   settings:
+       listen_host: localhost
+       listen_port: 50050
+       envoy_health_check_period: 5
+
+   aggregator:
+       private_attributes: private_attributes.aggregator_attrs
+
+**Envoy: Participating nodes in the Federation**
+
+The `fx envoy start` command is used to start the Envoy. You can run it with or without TLS, depending on your setup.
+
+**With TLS:**
+Use the following command:
+
+.. code-block:: console
+
+    $ fx envoy start -n <envoy_name> -ec <path_to_envoy_config_yaml_file> -dh <director_host> -dp <director_port> -rc <root_certificate_path> -pk <private_key_path> -oc <api_certificate_path>
+
+**Without TLS:**
+Use the following command:
+
+.. code-block:: console
+
+    $ fx envoy start -n <envoy_name> --disable-tls -ec <path_to_envoy_config_yaml_file>
+
+**Explanation of Command Options**
+
+- `-n <envoy_name>`: Specifies the name of the Envoy.
+- `-ec <path_to_envoy_config_yaml_file>`: Path to the Envoy's configuration file.
+- `-dh <director_host>`: Hostname or IP address of the Director.
+- `-dp <director_port>`: Port on which the Director is running.
+- `-rc <root_certificate_path>`: Path to the root certificate (used with TLS).
+- `-pk <private_key_path>`: Path to the private key file (used with TLS).
+- `-oc <api_certificate_path>`: Path to the API certificate file (used with TLS).
+- `--disable-tls`: Disables TLS encryption.
+
+The Envoy configuration file includes details about the private attributes. An example configuration file `envoy_config.yaml` for `envoy_one` is shown below:
+
+.. code-block:: yaml
+   envoy_one:
+       private_attributes: private_attributes.envoy_one_attrs
+
+**Note**: Private attributes for both the Director and Envoy can be configured in two ways, similar to :code:`LocalRuntime`. If both callable and private attributes are provided, the initialization process will prioritize the private attributes through the callable function.
+
+Now we proceed to instantiate the :code:`FederatedRuntime` to facilitate the deployment of the experiment on a distributed infrastructure. To initialize the :code:`FederatedRuntime`, the following inputs are required:
+
+1. `director_info`
+
+   Details about the Director, including:
+   
+   - Fully Qualified Domain Name (FQDN) of the Director node.
+   - Port number on which the Director is listening.
+   - (Optional) Certificate information for TLS:
+     
+     - `cert_chain`: Path to the certificate chain.
+     - `api_cert`: Path to the API certificate.
+     - `api_private_key`: Path to the API private key.
+
+2. `collaborators`
+
+   A list of collaborators participating in the federation.  
+   Only Envoys hosting these collaborators will receive the experiment details from the Director.
+
+3. `notebook_path`
+
+   File path to the Jupyter notebook defining the experiment logic.
+
+Below is an example of how to set up and instantiate a `FederatedRuntime`:
+
+.. code-block:: python
+
+   # Define director information
+   director_info = {
+       'director_node_fqdn': <FQDN>,
+       'director_port': <PORT>,
+       'cert_chain': <path>,         # optional: if TLS is enabled
+       'api_cert': <path>,           # optional: if TLS is enabled
+       'api_private_key': <path>,    # optional: if TLS is enabled
+   }
+
+   # Instantiate the FederatedRuntime
+   federated_runtime = FederatedRuntime(
+       collaborators=collaborator_names,
+       director=director_info,
+       notebook_path=<path_to_jupyter_notebook>,
+       tls=True                      # Enable TLS certification
+   )
+
+To distribute the experiment on the Federation, we now need to assign the federated_runtime to the flow and execute it.
+
+.. code-block:: python
+
+    flow = FederatedFlow()
+    flow.runtime = federated_runtime
+    flow.run()
+
+This will export the Jupyter notebook to an workspace and deploy it to the federation. The Director receives the experiment, distributes it to the Envoys, and initiates the execution of the experiment.
+
 Debugging with the Metaflow Client
 ==================================
 
@@ -293,6 +448,8 @@ Capturing this information requires just a one line change to the Flow object in
 .. code-block:: python
     
    flow = FederatedFlow(..., checkpoint=True)
+
+**LocalRuntime**
    
 After the flow has started running, you can use the Metaflow Client to get intermediate information from any of the participants tasks:
 
@@ -390,22 +547,16 @@ Also, If we wanted to get the best model and the last model, you can just run:
     torch.save(last_model.state_dict(), PATH)
     torch.save(best_model.state_dict(), PATH)
 
+**FederatedRuntime**
+
+1. `Checkpointing on the Director`:
+
+   - If checkpointing is enabled, it is performed on the `Director`.
+   - To debug checkpointing on the Director, you can follow the same steps outlined for :code:`LocalRuntime`.
+
+2. `Debugging Outputs in Jupyter Notebook`:
+
+   - The `stdout` and `stderr` logs can be accessed directly in the Jupyter notebook.
+   - The `updated flow state` is also available in the notebook for inspection and debugging.
+
 While this information is useful for debugging, depending on your workflow it may require significant disk space. For this reason, `checkpoint` is disabled by default.
-
-Runtimes: Future Plans
-======================
-
-Our goal is to make it a one line change to configure where and how a flow is executed. While we only support single node execution with the :code:`LocalRuntime` today, our aim in future releases is to make going from one to multiple nodes as easy as:
-
-.. code-block:: python
-   
-    flow = FederatedFlow()
-    # Run on a single node first
-    local_runtime = LocalRuntime(aggregator=aggregator, collaborators=collaborators)
-    flow.runtime = local_runtime
-    flow.run()
-    
-    # A future example of how the same flow could be run on distributed infrastructure
-    federated_runtime = FederatedRuntime(...)
-    flow.runtime = federated_runtime
-    flow.run()
