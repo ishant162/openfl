@@ -295,7 +295,7 @@ In the above example, we have used :code:`num_gpus=0.2` while instantiating Aggr
 FederatedRuntime
 ----------------
 
-The :code:`FederatedRuntime` facilitates distributed execution across long lived components - Director & Envoys. It allows Data scientists to deploy the experiment from the Jupyter notebook. Let’s explore the process of creating a :code:`FederatedRuntime`.
+The :code:`FederatedRuntime` facilitates distributed execution across long lived components (Director & Envoys) and enables Data scientists to deploy the experiment from the Jupyter notebook itself. Let’s explore the process of creating a :code:`FederatedRuntime`.
 
 First step is to create the participants in the Federation: the Director and Envoys
 
@@ -409,21 +409,21 @@ Below is an example of how to set up and instantiate a `FederatedRuntime`:
 
 .. code-block:: python
 
-   # Define director information
-   director_info = {
-       'director_node_fqdn': <FQDN>,
-       'director_port': <PORT>,
-       'cert_chain': <path>,         # optional: if TLS is enabled
-       'api_cert': <path>,           # optional: if TLS is enabled
-       'api_private_key': <path>,    # optional: if TLS is enabled
-   }
+   # Define director information (TLS disabled)
+    director_info = {
+        'director_node_fqdn':'localhost',
+        'director_port':50050,
+        'cert_chain': None,
+        'api_cert': None,
+        'api_private_key': None,
+    }
 
    # Instantiate the FederatedRuntime
    federated_runtime = FederatedRuntime(
        collaborators=collaborator_names,
        director=director_info,
        notebook_path=<path_to_jupyter_notebook>,
-       tls=True                      # Enable TLS certification
+       tls=False
    )
 
 To distribute the experiment on the Federation, we now need to assign the federated_runtime to the flow and execute it.
@@ -549,14 +549,10 @@ Also, If we wanted to get the best model and the last model, you can just run:
 
 **FederatedRuntime**
 
-1. `Checkpointing on the Director`:
+In a distributed environment consisting of Director, Envoys and User Node (where the experiment is launched), the following debugging support is available:
 
-   - If checkpointing is enabled, it is performed on the `Director`.
-   - To debug checkpointing on the Director, you can follow the same steps outlined for :code:`LocalRuntime`.
+1.	**Director Node**: If checkpointing is enabled, Metaflow client can be launched on Director and same steps outlined for :code:`LocalRuntime` can be followed.
+2.	**User Node**: The stdout and stderr logs are printed directly in the Jupyter notebook.
 
-2. `Debugging Outputs in Jupyter Notebook`:
+**IMPORTANT**: While this information is useful for debugging, depending on your workflow it may require significant disk space. For this reason, checkpoint is disabled by default.
 
-   - The `stdout` and `stderr` logs can be accessed directly in the Jupyter notebook.
-   - The `updated flow state` is also available in the notebook for inspection and debugging.
-
-While this information is useful for debugging, depending on your workflow it may require significant disk space. For this reason, `checkpoint` is disabled by default.
