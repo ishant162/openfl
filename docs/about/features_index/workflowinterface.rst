@@ -375,7 +375,6 @@ Use the following command:
 - `--disable-tls`: Disables TLS encryption.
 
 The Envoy configuration file includes details about the private attributes. An example configuration file `envoy_config.yaml` for `envoy_one` is shown below:
-
 .. code-block:: yaml
    envoy_one:
        private_attributes: private_attributes.envoy_one_attrs
