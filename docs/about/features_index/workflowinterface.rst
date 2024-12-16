@@ -385,7 +385,7 @@ The Envoy configuration file includes details about the private attributes. An e
 
 Now we proceed to instantiate the :code:`FederatedRuntime` to facilitate the deployment of the experiment on a distributed infrastructure. To initialize the :code:`FederatedRuntime`, the following inputs are required:
 
-1. `director_info`
+1. **director_info**
 
    Details about the Director, including:
    
@@ -397,12 +397,12 @@ Now we proceed to instantiate the :code:`FederatedRuntime` to facilitate the dep
      - `api_cert`: Path to the API certificate.
      - `api_private_key`: Path to the API private key.
 
-2. `collaborators`
+2. **collaborators**
 
    A list of collaborators participating in the federation.  
    Only Envoys hosting these collaborators will receive the experiment details from the Director.
 
-3. `notebook_path`
+3. **notebook_path**
 
    File path to the Jupyter notebook defining the experiment logic.
 
