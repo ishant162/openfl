@@ -31,9 +31,9 @@ class FLSpec:
         _initial_state (FLSpec or None): The saved initial state of the FLSpec instance.
         _foreach_methods (list): A list of methods to be applied iteratively.
         _checkpoint (bool): A flag indicating whether checkpointing is enabled.
-        _collaborators (list): A list of collaborators associated with the runtime.
         _metaflow_interface (MetaflowInterface): The interface to the Metaflow runtime.
         _run_id (str): The ID of the current run.
+        get_collaborators (Callable): Callable to get list of collaborators.
     """
 
     _clones = []
@@ -92,24 +92,6 @@ class FLSpec:
         if not isinstance(value, bool):
             raise ValueError("checkpoint must be a boolean value.")
         self._checkpoint = value
-
-    @property
-    def collaborators(self) -> List:
-        """Get the list of collaborators.
-
-        Returns:
-            _collaborators: A list of collaborators
-        """
-        return self._collaborators
-
-    @collaborators.setter
-    def collaborators(self, collaborators: List) -> None:
-        """Set the list of collaborators.
-
-        Args:
-            collaborators (List): A list of collaborators to be assigned.
-        """
-        self._collaborators = collaborators
 
     def _update_from_flspec_obj(self, flspec_obj: FLSpec) -> None:
         """Update self with attributes from the updated flspec instance.
@@ -175,20 +157,20 @@ class FLSpec:
         elif collaborator_to_aggregator(f, parent_func):
             print("Sending state from collaborator to aggregator")
 
-    def initialize_flow_state(self, collaborators: List, backend: str = "single_process") -> None:
+    def initialize_flow_state(self, get_collaborators: Callable, backend: str = "single_process") -> None:
         """
         Sets up the flow's initial state
 
         Args:
-            collaborators (list): A list of collaborators
+            get_collaborators (Callable): Callable to get list of collaborators
             backend (str): The runtime backend
         """
-        self.collaborators = collaborators
+        self.get_collaborators = get_collaborators
         print("MetaflowInterface creation.")
         self._metaflow_interface = MetaflowInterface(self.__class__, backend)
         self._run_id = self._metaflow_interface.create_run()
         self._foreach_methods = []
-        FLSpec._reset_and_create_clones(self, self.collaborators)
+        FLSpec._reset_and_create_clones(self, self.get_collaborators())
         if self._checkpoint:
             print(f"Created flow {self.__class__.__name__}")
 

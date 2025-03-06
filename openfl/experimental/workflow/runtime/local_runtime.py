@@ -832,6 +832,10 @@ class LocalRuntime(Runtime):
         for name, attr in final_attributes:
             setattr(flspec_obj, name, attr)
 
+    def get_collaborators_callback(self):
+        """Returns the list of collaborators as a callback for the flow."""
+        return self.collaborators
+
     def run(self, flspec_obj: Type[FLSpec]):
         """Runs the flow using the LocalRuntime.
 
@@ -840,7 +844,7 @@ class LocalRuntime(Runtime):
                 information about task sequence, flow attributes.
         """
         self._initialize_private_attributes()
-        flspec_obj.initialize_flow_state(self.collaborators, self.backend)
+        flspec_obj.initialize_flow_state(self.get_collaborators_callback, self.backend)
         self._execute_flow(flspec_obj)
 
     def __repr__(self):
