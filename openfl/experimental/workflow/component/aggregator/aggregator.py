@@ -182,6 +182,14 @@ class Aggregator:
         """
         return 10
 
+    def get_collab_callback(self) -> List:
+        """Returns the list of collaborators as a callback for the flow.
+
+        Returns:
+            List: A list of authorized collaborators.
+        """
+        return self.authorized_cols
+
     async def run_flow(self) -> FLSpec:
         """
         Start the execution and run flow until completion.
@@ -193,7 +201,7 @@ class Aggregator:
         # Start function will be the first step if any flow
         f_name = "start"
         # Initialize the flow state
-        self.flow.initialize_flow_state(self.authorized_cols)
+        self.flow.initialize_flow_state(self.get_collab_callback)
         logger.info(f"Starting round {self.current_round}...")
         while True:
             next_step = self.do_task(f_name)

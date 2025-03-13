@@ -537,6 +537,14 @@ class LocalRuntime(Runtime):
             get_collab_name(collaborator): collaborator for collaborator in collaborators
         }
 
+    def get_collaborators_callback(self) -> List:
+        """Returns the list of collaborators as a callback for the flow.
+
+        Returns:
+            List: A list of collaborators.
+        """
+        return self.collaborators
+
     def __handle_execution_exception(self, e: Exception):
         """Handles exceptions encountered during flow execution."""
         if "cannot pickle" in str(e) or "Failed to unpickle" in str(e):
@@ -840,7 +848,7 @@ class LocalRuntime(Runtime):
                 information about task sequence, flow attributes.
         """
         self._initialize_private_attributes()
-        flspec_obj.initialize_flow_state(self.collaborators, self.backend)
+        flspec_obj.initialize_flow_state(self.get_collaborators_callback, self.backend)
         self._execute_flow(flspec_obj)
 
     def __repr__(self):
