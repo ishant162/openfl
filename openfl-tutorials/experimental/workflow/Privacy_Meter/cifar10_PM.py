@@ -340,7 +340,6 @@ class FederatedFlow(FLSpec):
     def start(self):
         self.start_time = time.time()
         print("Performing initialization for model")
-        self.collaborators = self.runtime.collaborators
         self.private = 10
         self.next(
             self.aggregated_model_validation,
@@ -819,5 +818,4 @@ if __name__ == "__main__":
         args.flow_internal_loop_test,
     )
 
-    flflow.runtime = local_runtime
-    flflow.run()
+    local_runtime.run(flflow)
