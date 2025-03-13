@@ -348,7 +348,6 @@ class FederatedFlow(FLSpec):
     @aggregator
     def start(self):
         print("Performing initialization for model")
-        self.collaborators = self.runtime.collaborators
         self.private = 10
 
         # determine starting round collaborators by grabbing first batch of loader
@@ -669,5 +668,4 @@ if __name__ == "__main__":
         top_model_accuracy=top_model_accuracy,
         clip_test=args.clip_test,
     )
-    flflow.runtime = local_runtime
-    flflow.run()
+    local_runtime.run(flflow)
