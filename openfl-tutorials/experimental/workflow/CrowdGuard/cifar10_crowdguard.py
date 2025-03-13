@@ -307,7 +307,6 @@ class FederatedFlow(FLSpec):
     def start(self):
         self.start_time = time.time()
         print("Performing initialization for model")
-        self.collaborators = self.runtime.collaborators
         self.private = 10
         self.next(
             self.train,
@@ -614,5 +613,4 @@ if __name__ == '__main__':
         NUMBER_OF_MALICIOUS_CLIENTS / TOTAL_CLIENT_NUMBER,
         'CrowdGuard'
     )
-    flflow.runtime = local_runtime
-    flflow.run()
+    local_runtime.run(flflow)
