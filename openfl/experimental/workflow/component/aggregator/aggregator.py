@@ -188,7 +188,7 @@ class Aggregator:
         Returns:
             sleep_time: int
         """
-        return 10
+        return 5
 
     async def run_flow(self) -> FLSpec:
         """
@@ -203,10 +203,19 @@ class Aggregator:
         # Creating a clones from the flow object
         FLSpec._reset_clones()
         FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
-
         logger.info(f"Starting round {self.current_round}...")
+
+        while sorted(self.connected_collaborators) != sorted(self.authorized_cols):
+            logger.info("Waiting for all collaborators to connect...")
+            await asyncio.sleep(Aggregator._get_sleep_time())
+
         while True:
-            next_step = self.do_task(f_name)
+            try:
+                next_step = self.do_task(f_name)
+            except Exception as exc:
+                logger.error(f"Exception occurred in do_task: {exc}")
+                self.stop_experiment()
+                return exc, None
 
             if self.time_to_quit:
                 logger.info("Experiment Completed.")
@@ -250,7 +259,7 @@ class Aggregator:
                 self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
                 delattr(self, "instance_snapshot")
 
-        return self.flow
+        return None, self.flow
 
     def call_checkpoint(
         self, name: str, ctx: Any, f: Callable, stream_buffer: bytes = None
@@ -515,6 +524,23 @@ class Aggregator:
     def all_quit_jobs_sent(self) -> bool:
         """Assert all quit jobs are sent to collaborators."""
         return set(self.quit_job_sent_to) == set(self.authorized_cols)
+
+    def stop_experiment(self, error_msg: str = None, failed_collaborator: str = None) -> None:
+        """Notify collaborator failure
+
+        Args:
+            error_msg (str): Error message of the collaborator.
+            failed_collaborator (str, optional): Failed collaborator. Defaults to None.
+
+        Returns:
+            None
+        """
+        if failed_collaborator:
+            self.failure_detected = True
+            logger.info(f"{failed_collaborator} failed with Error: {error_msg}")
+        logger.info("Force stopping the aggregator execution.")
+        [q.queue.clear() for q in self.__collaborator_tasks_queue.values()]
+        self.time_to_quit = True
 
 
 the_dragon = """

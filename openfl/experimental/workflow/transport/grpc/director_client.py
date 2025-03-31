@@ -315,7 +315,7 @@ class RuntimeDirectorClient:
         """
         response = self.stub.GetFlowState(director_pb2.GetFlowStateRequest())
 
-        return response.completed, response.flspec_obj
+        return response.completed, response.error_msg, response.flspec_obj
 
     def stream_experiment_stdout(self, experiment_name) -> Iterator[Dict[str, Any]]:
         """Stream experiment stdout RPC.

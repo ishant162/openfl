@@ -78,7 +78,7 @@ class Experiment:
         self.users = set() if users is None else set(users)
         self.status = Status.PENDING
         self.aggregator = None
-        self.updated_flow = None
+        self.run_flow_result = None
 
     async def start(
         self,
@@ -127,20 +127,23 @@ class Experiment:
                     director_config=director_config,
                 )
                 self.aggregator = aggregator_grpc_server.aggregator
-                _, self.updated_flow = await asyncio.gather(
+                _, self.run_flow_result = await asyncio.gather(
                     self._run_aggregator_grpc_server(
                         aggregator_grpc_server,
                     ),
                     self.aggregator.run_flow(),
                 )
-            self.status = Status.FINISHED
-            logger.info("Experiment %s was finished successfully.", self.name)
+                error_msg, flspec_obj = self.run_flow_result
+
+            if error_msg is None:
+                self.status = Status.FINISHED
+                logger.info("Experiment %s was finished successfully.", self.name)
         except Exception as e:
             self.status = Status.FAILED
             logger.error("Experiment %s failed with error: %s.", self.name, e)
             raise
 
-        return self.status == Status.FINISHED, self.updated_flow
+        return self.status == Status.FINISHED, error_msg, flspec_obj
 
     def _create_aggregator_grpc_server(
         self,
