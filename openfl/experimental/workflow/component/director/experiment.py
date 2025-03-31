@@ -6,6 +6,7 @@
 
 import asyncio
 import logging
+import traceback
 from contextlib import asynccontextmanager
 from enum import Enum, auto
 from pathlib import Path
@@ -133,17 +134,18 @@ class Experiment:
                     ),
                     self.aggregator.run_flow(),
                 )
-                error_msg, flspec_obj = self.run_flow_result
-
-            if error_msg is None:
+            if isinstance(self.run_flow_result, str) and "Traceback" in self.run_flow_result:
+                self.status = Status.FAILED
+            else:
                 self.status = Status.FINISHED
-                logger.info("Experiment %s was finished successfully.", self.name)
-        except Exception as e:
+                logger.info(f"Experiment {self.name} finished successfully.")
+        except Exception:
             self.status = Status.FAILED
-            logger.error("Experiment %s failed with error: %s.", self.name, e)
+            self.run_flow_result = traceback.format_exc()
+            logger.error(f"Experiment {self.name} failed:\n{self.run_flow_result}")
             raise
 
-        return self.status == Status.FINISHED, error_msg, flspec_obj
+        return self.status == Status.FINISHED, self.run_flow_result
 
     def _create_aggregator_grpc_server(
         self,

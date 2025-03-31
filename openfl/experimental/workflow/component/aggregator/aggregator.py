@@ -8,6 +8,7 @@ import asyncio
 import inspect
 import queue
 import time
+import traceback
 from logging import getLogger
 from threading import Event
 from typing import Any, Callable, Dict, List, Tuple
@@ -181,6 +182,32 @@ class Aggregator:
             f" WARNED!!!"
         )
 
+    def _initialize_flow(self) -> str:
+        """Initialize flow by resetting and creating clones.
+
+        Returns:
+            f_name (str): First step in the flow
+        """
+        # Start function will be the first step if any flow
+        f_name = "start"
+        FLSpec._reset_clones()
+        FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
+        return f_name
+
+    def _assign_tasks(self, next_step) -> None:
+        """Prepare queue for collaborator task, with clones"""
+        for k, v in self.__collaborator_tasks_queue.items():
+            if k in self.selected_collaborators:
+                v.put((next_step, self.clones_dict[k]))
+            else:
+                logger.info(f"Tasks will not be sent to {k}")
+
+    def _restore_instance_snapshot(self) -> None:
+        """Restore instance snapshot if it exists."""
+        if hasattr(self, "instance_snapshot"):
+            self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
+            delattr(self, "instance_snapshot")
+
     @staticmethod
     def _get_sleep_time() -> int:
         """Sleep 10 seconds.
@@ -188,7 +215,37 @@ class Aggregator:
         Returns:
             sleep_time: int
         """
-        return 5
+        return 10
+
+    async def _wait_for_collaborators(self) -> None:
+        """Wait for all authorized collaborators to connect."""
+        while sorted(self.connected_collaborators) != sorted(self.authorized_cols):
+            connected_count = len(self.connected_collaborators)
+            total_count = len(self.authorized_cols)
+            logger.info(
+                f"Waiting for {total_count - connected_count}/{total_count} "
+                "collaborators to connect..."
+            )
+            await asyncio.sleep(Aggregator._get_sleep_time())
+
+    async def _wait_for_task_results(self) -> None:
+        """Wait for all selected collaborators to send their results."""
+        while not self.collaborator_task_results.is_set():
+            len_sel_collabs = len(self.selected_collaborators)
+            if self.tasks_sent_to_collaborators != len_sel_collabs:
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - self.tasks_sent_to_collaborators}"
+                    + f"/{len_sel_collabs}"
+                    + " to make requests for tasks..."
+                )
+            else:
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - self.collaborators_counter}/{len_sel_collabs}"
+                    + " collaborators to send results..."
+                )
+            await asyncio.sleep(Aggregator._get_sleep_time())
 
     async def run_flow(self) -> FLSpec:
         """
@@ -198,68 +255,30 @@ class Aggregator:
         Returns:
             flow (FLSpec): Updated instance.
         """
-        # Start function will be the first step if any flow
-        f_name = "start"
-        # Creating a clones from the flow object
-        FLSpec._reset_clones()
-        FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
+        f_name = self._initialize_flow()
+        await self._wait_for_collaborators()
         logger.info(f"Starting round {self.current_round}...")
-
-        while sorted(self.connected_collaborators) != sorted(self.authorized_cols):
-            logger.info("Waiting for all collaborators to connect...")
-            await asyncio.sleep(Aggregator._get_sleep_time())
 
         while True:
             try:
                 next_step = self.do_task(f_name)
-            except Exception as exc:
-                logger.error(f"Exception occurred in do_task: {exc}")
+            except Exception:
+                error_message = "".join(traceback.format_exc())  # Capture full traceback
+                logger.error(f"Exception occurred in do_task:\n{error_message}")
                 self.stop_experiment()
-                return exc, None
+                return error_message
 
             if self.time_to_quit:
                 logger.info("Experiment Completed.")
                 break
 
-            # Prepare queue for collaborator task, with clones
-            for k, v in self.__collaborator_tasks_queue.items():
-                if k in self.selected_collaborators:
-                    v.put((next_step, self.clones_dict[k]))
-                else:
-                    logger.info(f"Tasks will not be sent to {k}")
-
-            while not self.collaborator_task_results.is_set():
-                len_sel_collabs = len(self.selected_collaborators)
-                len_connected_collabs = len(self.connected_collaborators)
-                if len_connected_collabs < len_sel_collabs:
-                    # Waiting for collaborators to connect.
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - len_connected_collabs}/{len_sel_collabs}"
-                        + " collaborators to connect..."
-                    )
-                elif self.tasks_sent_to_collaborators != len_sel_collabs:
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - self.tasks_sent_to_collaborators}/{len_sel_collabs}"
-                        + " to make requests for tasks..."
-                    )
-                else:
-                    # Waiting for selected collaborators to send the results.
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - self.collaborators_counter}/{len_sel_collabs}"
-                        + " collaborators to send results..."
-                    )
-                await asyncio.sleep(Aggregator._get_sleep_time())
-
+            self._assign_tasks(next_step)
+            await self._wait_for_task_results()
             self.collaborator_task_results.clear()
             f_name = self.next_step
-            if hasattr(self, "instance_snapshot"):
-                self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
-                delattr(self, "instance_snapshot")
+            self._restore_instance_snapshot()
 
-        return None, self.flow
+        return self.flow
 
     def call_checkpoint(
         self, name: str, ctx: Any, f: Callable, stream_buffer: bytes = None
@@ -525,19 +544,8 @@ class Aggregator:
         """Assert all quit jobs are sent to collaborators."""
         return set(self.quit_job_sent_to) == set(self.authorized_cols)
 
-    def stop_experiment(self, error_msg: str = None, failed_collaborator: str = None) -> None:
-        """Notify collaborator failure
-
-        Args:
-            error_msg (str): Error message of the collaborator.
-            failed_collaborator (str, optional): Failed collaborator. Defaults to None.
-
-        Returns:
-            None
-        """
-        if failed_collaborator:
-            self.failure_detected = True
-            logger.info(f"{failed_collaborator} failed with Error: {error_msg}")
+    def stop_experiment(self) -> None:
+        """Stop experiment and inform all collaborators."""
         logger.info("Force stopping the aggregator execution.")
         [q.queue.clear() for q in self.__collaborator_tasks_queue.values()]
         self.time_to_quit = True

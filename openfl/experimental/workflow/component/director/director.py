@@ -140,8 +140,8 @@ class Director:
             status (bool): The flow status.
             flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
         """
-        status, error, flspec_obj = await self._flow_status.get()
-        return status, error, dill.dumps(flspec_obj)
+        status, flow_result = await self._flow_status.get()
+        return status, dill.dumps(flow_result) if status else flow_result
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.

@@ -220,10 +220,10 @@ class FLSpec:
             flspec_obj (Union[FLSpec, None]): An updated FLSpec instance if the experiment
                 runs successfully. None if the experiment could not run.
         """
-        status, error_msg, flspec_obj = self.runtime.get_flow_state()
-        if status and flspec_obj:
+        status, flspec_object, error_msg = self.runtime.get_flow_state()
+        if status and flspec_object:
             print("\033[92mExperiment ran successfully\033[0m")
-            return flspec_obj
+            return flspec_object
         else:
             print(
                 "\033[91mExperiment could not run due to error:\033[0m",

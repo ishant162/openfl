@@ -187,13 +187,14 @@ class FederatedRuntime(Runtime):
             flow_object: The deserialized flow object.
         """
         status, error_msg, flspec_obj = self._runtime_dir_client.get_flow_state()
-
-        # Append generated workspace path to sys.path
-        # to allow unpickling of flspec_obj
-        sys.path.append(str(self.generated_workspace_path))
-        flow_object = dill.loads(flspec_obj)
-
-        return status, error_msg, flow_object
+        if flspec_obj:
+            # Append generated workspace path to sys.path
+            # to allow unpickling of flspec_obj
+            sys.path.append(str(self.generated_workspace_path))
+            flow_object = dill.loads(flspec_obj)
+            return status, flow_object, None
+        else:
+            return status, None, error_msg
 
     def get_envoys(self) -> List[str]:
         """
