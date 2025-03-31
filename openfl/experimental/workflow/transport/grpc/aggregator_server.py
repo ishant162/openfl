@@ -11,6 +11,7 @@ from multiprocessing import cpu_count
 from random import random
 from time import sleep
 
+from google.protobuf import empty_pb2
 from grpc import StatusCode, server, ssl_server_credentials
 
 from openfl.experimental.workflow.protocols import aggregator_pb2, aggregator_pb2_grpc
@@ -189,6 +190,11 @@ class AggregatorGRPCServer(aggregator_pb2_grpc.AggregatorServicer):
         )
 
         return aggregator_pb2.CheckpointResponse(header=self.get_header(collaborator_name))
+
+    def NotifyCollaboratorFailure(self, request, context):
+        """Notify Aggregator about collaborator failure."""
+        self.aggregator.stop_experiment(request.error_message, request.collaborator_id)
+        return empty_pb2.Empty()
 
     def get_server(self):
         """Return gRPC server."""

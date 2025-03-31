@@ -6,12 +6,14 @@ syntax = "proto3";
 package openfl.experiment.aggregator;
 
 import "openfl/protocols/base.proto";
+import "google/protobuf/empty.proto";
 
 
 service Aggregator {
   rpc SendTaskResults(TaskResultsRequest) returns (TaskResultsResponse) {}
   rpc GetTasks(GetTasksRequest) returns (GetTasksResponse) {}
   rpc CallCheckpoint(CheckpointRequest) returns (CheckpointResponse) {}
+  rpc NotifyCollaboratorFailure (CollaboratorFailureRequest) returns (google.protobuf.Empty) {}
 }
 
 message MessageHeader {
@@ -55,4 +57,9 @@ message CheckpointRequest {
 
 message CheckpointResponse {
   MessageHeader header = 1;
+}
+
+message CollaboratorFailureRequest {
+  string collaborator_id = 1;
+  string error_message = 2;
 }

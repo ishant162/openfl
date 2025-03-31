@@ -320,3 +320,11 @@ class AggregatorGRPCClient:
         self.validate_response(response, collaborator_name)
 
         return response.header
+
+    @_atomic_connection
+    @_resend_data_on_reconnection
+    def notify_failure(self, error_message, collaborator_name):
+        request = aggregator_pb2.CollaboratorFailureRequest(
+            collaborator_id=collaborator_name, error_message=error_message
+        )
+        self.stub.NotifyCollaboratorFailure(request)

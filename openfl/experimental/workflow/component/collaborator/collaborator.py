@@ -143,8 +143,14 @@ class Collaborator:
                 time.sleep(sleep_time)
             else:
                 self.logger.info(f"Received the following tasks: {next_step}.")
-                f_name, ctx = self.do_task(next_step, clone)
-                self.send_task_results(f_name, ctx)
+                try:
+                    f_name, ctx = self.do_task(next_step, clone)
+                    self.send_task_results(f_name, ctx)
+                except Exception as e:
+                    error_msg = f"Error while executing task: {str(e)}"
+                    self.logger.error(error_msg)
+                    self.client.notify_failure(error_msg, self.name)
+                    break
 
         self.logger.info("End of Federation reached. Exiting...")
 
