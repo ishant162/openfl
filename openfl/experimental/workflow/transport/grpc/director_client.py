@@ -314,8 +314,10 @@ class RuntimeDirectorClient:
                     details of the updated flow state.
         """
         response = self.stub.GetFlowState(director_pb2.GetFlowStateRequest())
-
-        return response.completed, response.flspec_obj
+        if response.HasField("flspec_obj"):
+            return response.completed, None, response.flspec_obj
+        else:
+            return response.completed, response.error_msg, None
 
     def stream_experiment_stdout(self, experiment_name) -> Iterator[Dict[str, Any]]:
         """Stream experiment stdout RPC.
