@@ -217,29 +217,26 @@ class Aggregator:
         """
         return 10
 
-    async def _wait_for_collaborators(self) -> None:
-        """Wait for all authorized collaborators to connect."""
-        while sorted(self.connected_collaborators) != sorted(self.authorized_cols):
-            connected_count = len(self.connected_collaborators)
-            total_count = len(self.authorized_cols)
-            logger.info(
-                f"Waiting for {total_count - connected_count}/{total_count} "
-                "collaborators to connect..."
-            )
-            await asyncio.sleep(Aggregator._get_sleep_time())
-
-    async def _wait_for_task_results(self) -> None:
+    async def _track_collaborator_status(self) -> None:
         """Wait for all selected collaborators to send their results."""
         while not self.collaborator_task_results.is_set():
             len_sel_collabs = len(self.selected_collaborators)
-            if self.tasks_sent_to_collaborators != len_sel_collabs:
+            len_connected_collabs = len(self.connected_collaborators)
+            if len_connected_collabs < len_sel_collabs:
+                # Waiting for collaborators to connect.
                 logger.info(
                     "Waiting for "
-                    + f"{len_sel_collabs - self.tasks_sent_to_collaborators}"
-                    + f"/{len_sel_collabs}"
+                    + f"{len_sel_collabs - len_connected_collabs}/{len_sel_collabs}"
+                    + " collaborators to connect..."
+                )
+            elif self.tasks_sent_to_collaborators != len_sel_collabs:
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - self.tasks_sent_to_collaborators}/{len_sel_collabs}"
                     + " to make requests for tasks..."
                 )
             else:
+                # Waiting for selected collaborators to send the results.
                 logger.info(
                     "Waiting for "
                     + f"{len_sel_collabs - self.collaborators_counter}/{len_sel_collabs}"
@@ -256,7 +253,6 @@ class Aggregator:
             flow (FLSpec): Updated instance.
         """
         f_name = self._initialize_flow()
-        await self._wait_for_collaborators()
         logger.info(f"Starting round {self.current_round}...")
 
         while True:
@@ -273,7 +269,7 @@ class Aggregator:
                 break
 
             self._assign_tasks(next_step)
-            await self._wait_for_task_results()
+            await self._track_collaborator_status()
             self.collaborator_task_results.clear()
             f_name = self.next_step
             self._restore_instance_snapshot()
