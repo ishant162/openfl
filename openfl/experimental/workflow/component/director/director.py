@@ -132,16 +132,24 @@ class Director:
             )
             await asyncio.sleep(10)
 
-    async def get_flow_state(self) -> Tuple[bool, bytes]:
+    async def get_flow_state(self) -> Tuple[str, bool, bytes, str]:
         """Wait until the experiment flow status indicates completion
         and return the status along with a serialized FLSpec object.
 
         Returns:
-            status (bool): The flow status.
-            flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
+            Tuple containing:
+                origin (str): The source of the status update.
+                status (bool): The flow run status.
+                flspec_obj (bytes): A serialized FLSpec object.
+                exception (str): Any exception that occurred, if present.
         """
-        status, flow_result = await self._flow_status.get()
-        return status, dill.dumps(flow_result) if status else flow_result
+        experiment_status = await self._flow_status.get()
+        origin = experiment_status["origin"]
+        run_status = experiment_status["status"]
+        flspec_obj = dill.dumps(experiment_status["flspec"])
+        exception = experiment_status["exception"]
+
+        return origin, run_status, flspec_obj, exception
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.

@@ -86,11 +86,10 @@ message GetEnvoysResponse {
 message GetFlowStateRequest {}
 
 message GetFlowStateResponse {
-    bool completed = 1;
-    oneof result {
-        bytes flspec_obj = 2;
-        string error_msg = 3;
-    }
+    string origin = 1;
+    bool completed = 2;
+    bytes flspec_obj = 3;
+    string exception = 4;
 }
 
 message SendRuntimeRequest {}

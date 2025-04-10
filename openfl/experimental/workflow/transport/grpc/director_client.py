@@ -309,15 +309,14 @@ class RuntimeDirectorClient:
 
         Returns:
             tuple: A tuple containing:
+                - origin (str): The source of the status update.
                 - completed (bool): Indicates whether the flow has completed.
                 - flspec_obj (object): The FLSpec object containing
                     details of the updated flow state.
+                - exception (str): Any exception that occurred, if present.
         """
         response = self.stub.GetFlowState(director_pb2.GetFlowStateRequest())
-        if response.HasField("flspec_obj"):
-            return response.completed, None, response.flspec_obj
-        else:
-            return response.completed, response.error_msg, None
+        return response.origin, response.completed, response.flspec_obj, response.exception
 
     def stream_experiment_stdout(self, experiment_name) -> Iterator[Dict[str, Any]]:
         """Stream experiment stdout RPC.

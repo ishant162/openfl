@@ -11,10 +11,13 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import dill
 from tabulate import tabulate
+
+if TYPE_CHECKING:
+    from openfl.experimental.workflow.interface import FLSpec
 
 from openfl.experimental.workflow.runtime.runtime import Runtime
 from openfl.experimental.workflow.transport.grpc.director_client import RuntimeDirectorClient
@@ -178,23 +181,22 @@ class FederatedRuntime(Runtime):
         finally:
             self.remove_workspace_archive(archive_path)
 
-    def get_flow_state(self) -> Tuple[bool, Any]:
+    def get_flow_state(self) -> Tuple[str, bool, "FLSpec", str]:
         """
         Retrieve the updated flow status and deserialized flow object.
 
         Returns:
-            status (bool): The flow status.
-            flow_object: The deserialized flow object.
+            origin (str): The source of the status update.
+            status (bool): The experiment status.
+            flow_object (FLSpec): The deserialized flow object.
+            exception (str): Exception message if any.
         """
-        status, error_msg, flspec_obj = self._runtime_dir_client.get_flow_state()
-        if flspec_obj:
-            # Append generated workspace path to sys.path
-            # to allow unpickling of flspec_obj
-            sys.path.append(str(self.generated_workspace_path))
-            flow_object = dill.loads(flspec_obj)
-            return status, flow_object, None
-        else:
-            return status, None, error_msg
+        origin, status, flspec_obj, exception = self._runtime_dir_client.get_flow_state()
+        # Append generated workspace path to sys.path
+        # to allow unpickling of flspec_obj
+        sys.path.append(str(self.generated_workspace_path))
+        flow_object = dill.loads(flspec_obj)
+        return origin, status, flow_object, exception
 
     def get_envoys(self) -> List[str]:
         """

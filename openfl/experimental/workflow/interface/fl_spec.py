@@ -193,8 +193,7 @@ class FLSpec:
             # Retrieve the flspec object to update the experiment state
             flspec_obj = self._get_flow_state()
             # Update state of self
-            if flspec_obj:
-                self._update_from_flspec_obj(flspec_obj)
+            self._update_from_flspec_obj(flspec_obj)
         except Exception as e:
             raise Exception(
                 f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
@@ -212,24 +211,22 @@ class FLSpec:
 
         self._foreach_methods = flspec_obj._foreach_methods
 
-    def _get_flow_state(self) -> Union[FLSpec, None]:
+    def _get_flow_state(self) -> FLSpec:
         """
         Gets the updated flow state.
 
         Returns:
-            flspec_obj (Union[FLSpec, None]): An updated FLSpec instance if the experiment
-                runs successfully. None if the experiment could not run.
+            flspec_obj (FLSpec): An updated FLSpec instance.
         """
-        status, flspec_object, error_msg = self.runtime.get_flow_state()
-        if status and flspec_object:
-            print("\033[92mExperiment ran successfully\033[0m")
-            return flspec_object
+        origin, status, flspec_object, exception = self.runtime.get_flow_state()
+        if status:
+            print(f"\033[92m Origin: [{origin}]\nExperiment ran successfully\033[0m")
         else:
             print(
-                "\033[91mExperiment could not run due to error:\033[0m",
-                f"\033[91m{error_msg}\033[0m",
+                f"\033[91m Origin: [{origin}]\nExperiment could not run due to error:\033[0m",
+                f"\033[91m{exception}\033[0m",
             )
-            return None
+        return flspec_object
 
     def _capture_instance_snapshot(self, kwargs) -> List:
         """Takes backup of self before exclude or include filtering.

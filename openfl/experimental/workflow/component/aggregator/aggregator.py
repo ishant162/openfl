@@ -11,10 +11,11 @@ import time
 import traceback
 from logging import getLogger
 from threading import Event
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import dill
 
+from openfl.experimental.workflow.component.director.experiment import ExperimentStatus
 from openfl.experimental.workflow.interface import FLSpec
 from openfl.experimental.workflow.runtime import FederatedRuntime
 from openfl.experimental.workflow.utilities import aggregator_to_collaborator, checkpoint
@@ -55,6 +56,7 @@ class Aggregator:
         connected_collaborators (list): List of connected collaborators
         tasks_sent_to_collaborators (int): count of tasks sent to collaborators.
         stdout_queue (queue.Queue): Queue for stdout.
+        experiment_status (ExperimentStatus): Experiment status instance.
 
     Returns:
         None
@@ -139,6 +141,7 @@ class Aggregator:
         self.connected_collaborators = []
         self.tasks_sent_to_collaborators = 0
         self.stdout_queue = queue.Queue()
+        self.experiment_status = ExperimentStatus(self.authorized_cols)
 
         if self.__private_attrs_callable is not None:
             logger.info("Initializing aggregator private attributes...")
@@ -182,20 +185,17 @@ class Aggregator:
             f" WARNED!!!"
         )
 
-    def _initialize_flow(self) -> str:
-        """Initialize flow by resetting and creating clones.
-
-        Returns:
-            f_name (str): First step in the flow
-        """
-        # Start function will be the first step if any flow
-        f_name = "start"
+    def _initialize_flow(self) -> None:
+        """Initialize flow by resetting and creating clones."""
         FLSpec._reset_clones()
         FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
-        return f_name
 
-    def _assign_tasks(self, next_step) -> None:
-        """Prepare queue for collaborator task, with clones"""
+    def _prepare_collaborator_queues(self, next_step) -> None:
+        """Prepare task queues for collaborators with clones.
+
+        Args:
+            next_step (str): Next step in the flow
+        """
         for k, v in self.__collaborator_tasks_queue.items():
             if k in self.selected_collaborators:
                 v.put((next_step, self.clones_dict[k]))
@@ -218,7 +218,7 @@ class Aggregator:
         return 10
 
     async def _track_collaborator_status(self) -> None:
-        """Wait for all selected collaborators to send their results."""
+        """Wait for selected collaborators to connect, request tasks, and submit results."""
         while not self.collaborator_task_results.is_set():
             len_sel_collabs = len(self.selected_collaborators)
             len_connected_collabs = len(self.connected_collaborators)
@@ -244,37 +244,52 @@ class Aggregator:
                 )
             await asyncio.sleep(Aggregator._get_sleep_time())
 
-    async def run_flow(self) -> FLSpec:
+    async def run_flow(self) -> dict[str, Union[str, FLSpec, bool, None]]:
         """
         Start the execution and run flow until completion.
-        Returns the updated flow to the user.
 
         Returns:
-            flow (FLSpec): Updated instance.
+            dict[str, str | FLSpec | bool | None]: A dictionary containing the
+                status of the experiment.
         """
-        f_name = self._initialize_flow()
+        self._initialize_flow()
+        # Start function will be the first step of any flow
+        f_name = "start"
         logger.info(f"Starting round {self.current_round}...")
 
         while True:
             try:
                 next_step = self.do_task(f_name)
             except Exception:
-                error_message = "".join(traceback.format_exc())  # Capture full traceback
-                logger.error(f"Exception occurred in do_task:\n{error_message}")
-                self.stop_experiment()
-                return error_message
+                error_trace = traceback.format_exc()
+                logger.error(f"Force stopping Aggregator execution due to error: {error_trace}")
+                self.experiment_status.mark_failure("aggregator", error_trace)
+                self.__delete_private_attrs_from_clone(self.flow)
+                self.time_to_quit = True
+                logger.info("Waiting for collaborators...")
 
             if self.time_to_quit:
                 logger.info("Experiment Completed.")
                 break
 
-            self._assign_tasks(next_step)
+            self._prepare_collaborator_queues(next_step)
             await self._track_collaborator_status()
             self.collaborator_task_results.clear()
             f_name = self.next_step
             self._restore_instance_snapshot()
 
-        return self.flow
+        return self._end_experiment()
+
+    def _end_experiment(self) -> dict[str, Union[str, FLSpec, bool, None]]:
+        """End the experiment and inform all collaborators.
+
+        Returns:
+            dict[str, str | FLSpec | bool | None]: A dictionary containing the
+                status of the experiment.
+        """
+        # Inform all collaborators to quit
+        [q.queue.clear() for q in self.__collaborator_tasks_queue.values()]
+        return self.experiment_status.get_experiment_status(self.flow)
 
     def call_checkpoint(
         self, name: str, ctx: Any, f: Callable, stream_buffer: bytes = None
@@ -402,6 +417,7 @@ class Aggregator:
                     self.time_to_quit = True
                     # It is time to quit - Break the loop
                     not_at_transition_point = False
+                    self.experiment_status.mark_success("aggregator")
                 # Start next round of execution
                 else:
                     self.current_round += 1
@@ -539,12 +555,6 @@ class Aggregator:
     def all_quit_jobs_sent(self) -> bool:
         """Assert all quit jobs are sent to collaborators."""
         return set(self.quit_job_sent_to) == set(self.authorized_cols)
-
-    def stop_experiment(self) -> None:
-        """Stop experiment and inform all collaborators."""
-        logger.info("Force stopping the aggregator execution.")
-        [q.queue.clear() for q in self.__collaborator_tasks_queue.values()]
-        self.time_to_quit = True
 
 
 the_dragon = """

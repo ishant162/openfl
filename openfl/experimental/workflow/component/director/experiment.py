@@ -8,9 +8,11 @@ import asyncio
 import logging
 import traceback
 from contextlib import asynccontextmanager
-from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Union
+
+if TYPE_CHECKING:
+    from openfl.experimental.workflow.interface import FLSpec
 
 from openfl.experimental.workflow.federated import Plan
 from openfl.experimental.workflow.transport import AggregatorGRPCServer
@@ -19,14 +21,94 @@ from openfl.utilities.workspace import ExperimentWorkspace
 logger = logging.getLogger(__name__)
 
 
-class Status(Enum):
-    """Experiment's statuses."""
+class ExperimentStatus:
+    """
+    A class to track the status and exceptions of an experiment run involving
+    aggregator and multiple collaborators.
 
-    PENDING = auto()
-    FINISHED = auto()
-    IN_PROGRESS = auto()
-    FAILED = auto()
-    REJECTED = auto()
+    Attributes:
+        status (dict): A dictionary containing the status and exception
+            information for the aggregator and each collaborator.
+    """
+
+    def __init__(self, authorized_collaborators: list[str]) -> None:
+        """
+        Initialize the ExperimentStatus object.
+
+        Args:
+            authorized_collaborators (list[str]): A list of collaborator names.
+        """
+        self.status = {
+            "aggregator": {
+                "status": None,
+                "exception": None,
+            },
+            "collaborators": {
+                name: {
+                    "status": None,
+                    "exception": None,
+                }
+                for name in authorized_collaborators
+            },
+        }
+
+    def mark_success(self, name: str) -> None:
+        """
+        Mark a given participant (aggregator or collaborator) as successful.
+
+        Args:
+            name (str): The name of the participant ("aggregator" or a collaborator name).
+        """
+        participant = self._get_participant(name)
+        participant["status"] = True
+
+    def mark_failure(self, name: str, exception: str) -> None:
+        """
+        Mark a given participant (aggregator or collaborator) as failed with an exception.
+
+        Args:
+            name (str): The name of the participant ("aggregator" or a collaborator name).
+            exception (str): The exception message to store.
+        """
+        participant = self._get_participant(name)
+        participant["status"] = False
+        participant["exception"] = str(exception)
+
+    def _get_participant(self, name: str) -> dict:
+        """
+        Retrieve the status dictionary of a specific participant.
+
+        Args:
+            name (str): The name of the participant ("aggregator" or a collaborator name).
+
+        Returns:
+            dict: The status and exception info for the given participant.
+        """
+        if name == "aggregator":
+            return self.status["aggregator"]
+        return self.status["collaborators"][name]
+
+    # TODO: Function status to include collaborators
+    def get_experiment_status(
+        self, flspec_obj: "FLSpec"
+    ) -> dict[str, Union[str, "FLSpec", bool, None]]:
+        """
+        Check the current status of the experiment.
+
+        Args:
+            flspec_obj (FLSpec): Reference to the FLSpec (flow) object.
+
+        Returns:
+            dict[str, Union[str, "FLSpec", bool, None]]: A dictionary containing the
+                status of the experiment, including any exceptions that occurred.
+        """
+        aggregator = self.status["aggregator"]
+        return {
+            "origin": "aggregator",
+            "status": aggregator["status"],
+            "flspec": flspec_obj,
+            "exception": aggregator["exception"],
+        }
 
 
 class Experiment:
@@ -41,9 +123,9 @@ class Experiment:
             init_tensor_dict (dict): The initial tensor dictionary.
             plan_path (Union[Path, str]): The path to the plan.
             users (Iterable[str]): The list of users.
-            status (str): The status of the experiment.
             aggregator (Aggregator): The aggregator instance.
-            updated_flow (FLSpec): Updated flow instance.
+            run_flow_status (dict): A dictionary containing the
+                status of the experiment.
     """
 
     def __init__(
@@ -77,7 +159,6 @@ class Experiment:
         # experiment workspace provided by the director
         self.plan_path = Path(plan_path)
         self.users = set() if users is None else set(users)
-        self.status = Status.PENDING
         self.aggregator = None
         self.run_flow_result = None
 
@@ -90,7 +171,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ) -> Tuple[bool, Any]:
+    ) -> dict[str, Union[str, "FLSpec", bool, None]]:
         """Run experiment.
 
         Args:
@@ -107,11 +188,9 @@ class Experiment:
                 requirements should be installed. Defaults to False.
 
         Returns:
-            List[Union[bool, Any]]:
-                - status: status of the experiment.
-                - updated_flow: The updated flow object.
+            dict[str, Union[str, "FLSpec", bool, None]]: A dictionary containing the
+                status of the experiment.
         """
-        self.status = Status.IN_PROGRESS
         try:
             logger.info(f"New experiment {self.name} for collaborators {self.collaborators}")
 
@@ -128,24 +207,21 @@ class Experiment:
                     director_config=director_config,
                 )
                 self.aggregator = aggregator_grpc_server.aggregator
-                _, self.run_flow_result = await asyncio.gather(
+                _, self.run_flow_status = await asyncio.gather(
                     self._run_aggregator_grpc_server(
                         aggregator_grpc_server,
                     ),
                     self.aggregator.run_flow(),
                 )
-            if isinstance(self.run_flow_result, str) and "Traceback" in self.run_flow_result:
-                self.status = Status.FAILED
+            if not self.run_flow_status["status"]:
+                logger.info(f"Experiment {self.name} failed.")
             else:
-                self.status = Status.FINISHED
                 logger.info(f"Experiment {self.name} finished successfully.")
         except Exception:
-            self.status = Status.FAILED
-            self.run_flow_result = traceback.format_exc()
-            logger.error(f"Experiment {self.name} failed:\n{self.run_flow_result}")
+            logger.error(f"Experiment {self.name} failed:\n{traceback.format_exc()}")
             raise
 
-        return self.status == Status.FINISHED, self.run_flow_result
+        return self.run_flow_status
 
     def _create_aggregator_grpc_server(
         self,
