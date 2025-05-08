@@ -325,8 +325,10 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         Returns:
             director_pb2.GetFlowStateResponse: The response to the request.
         """
-        status, flspec_obj = await self.director.get_flow_state()
-        return director_pb2.GetFlowStateResponse(completed=status, flspec_obj=flspec_obj)
+        status, flspec_obj, exception = await self.director.get_flow_state()
+        return director_pb2.GetFlowStateResponse(
+            completed=status, flspec_obj=flspec_obj, exception=exception
+        )
 
     async def GetExperimentStdout(
         self, request, context

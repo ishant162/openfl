@@ -6,6 +6,7 @@
 
 import asyncio
 import logging
+import traceback
 from contextlib import asynccontextmanager
 from enum import Enum, auto
 from pathlib import Path
@@ -79,6 +80,7 @@ class Experiment:
         self.status = Status.PENDING
         self.aggregator = None
         self.updated_flow = None
+        self.experiment_exception_trace = None
 
     async def start(
         self,
@@ -135,12 +137,15 @@ class Experiment:
                 )
             self.status = Status.FINISHED
             logger.info("Experiment %s was finished successfully.", self.name)
-        except Exception as e:
+        except Exception:
+            self.experiment_exception_trace = traceback.format_exc()
             self.status = Status.FAILED
-            logger.error("Experiment %s failed with error: %s.", self.name, e)
-            raise
+            self.aggregator.quit_job_sent_to = self.collaborators
+            logger.error(
+                f"Experiment {self.name} failed with error: {self.experiment_exception_trace}"
+            )
 
-        return self.status == Status.FINISHED, self.updated_flow
+        return self.status == Status.FINISHED, self.updated_flow, self.experiment_exception_trace
 
     def _create_aggregator_grpc_server(
         self,

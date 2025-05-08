@@ -182,6 +182,7 @@ class FLSpec:
 
     def _run_federated(self) -> None:
         """Executes the flow using FederatedRuntime."""
+        exp_name = None
         try:
             # Prepare workspace and submit it for the FederatedRuntime
             archive_path, exp_name = self.runtime.prepare_workspace_archive()
@@ -192,11 +193,15 @@ class FLSpec:
             # Retrieve the flspec object to update the experiment state
             flspec_obj = self._get_flow_state()
             # Update state of self
-            self._update_from_flspec_obj(flspec_obj)
+            if flspec_obj:
+                self._update_from_flspec_obj(flspec_obj)
         except Exception as e:
-            raise Exception(
-                f"FederatedRuntime: Experiment {exp_name} failed to run due to error: {e}"
+            error_msg = (
+                "FederatedRuntime: Failed to prepare workspace archive"
+                if exp_name is None
+                else f"FederatedRuntime: Experiment {exp_name} failed"
             )
+            raise Exception(f"{error_msg} due to error: {e}")
 
     def _update_from_flspec_obj(self, flspec_obj: FLSpec) -> None:
         """Update self with attributes from the updated flspec instance.
@@ -218,12 +223,15 @@ class FLSpec:
             flspec_obj (Union[FLSpec, None]): An updated FLSpec instance if the experiment
                 runs successfully. None if the experiment could not run.
         """
-        status, flspec_obj = self.runtime.get_flow_state()
-        if status:
-            print("Experiment ran successfully")
+        status, flspec_obj, exception = self.runtime.get_flow_state()
+        if status and flspec_obj:
+            print("\033[92mExperiment ran successfully\033[0m")
             return flspec_obj
         else:
-            print("Experiment could not run")
+            print(
+                "\033[91m Experiment could not run due to error:\033[0m",
+                f"\033[91m{exception}\033[0m",
+            )
             return None
 
     def _capture_instance_snapshot(self, kwargs) -> List:

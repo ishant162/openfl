@@ -96,6 +96,7 @@ class Director:
         loop = asyncio.get_event_loop()
         while True:
             try:
+                logger.info("Waiting for experiment...")
                 async with self.experiments_registry.get_next_experiment() as experiment:
                     await self._wait_for_authorized_envoys()
                     run_aggregator_future = loop.create_task(
@@ -117,7 +118,7 @@ class Director:
                     await self._flow_status.put(flow_status)
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
-                raise
+                continue
 
     async def _wait_for_authorized_envoys(self) -> None:
         """Wait until all authorized envoys are connected"""
@@ -139,8 +140,8 @@ class Director:
             status (bool): The flow status.
             flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
         """
-        status, flspec_obj = await self._flow_status.get()
-        return status, dill.dumps(flspec_obj)
+        status, flspec_obj, exception = await self._flow_status.get()
+        return status, dill.dumps(flspec_obj), exception
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.

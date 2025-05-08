@@ -105,7 +105,6 @@ class EnvoyDirectorClient:
         Returns:
             experiment_name (str): The name of the experiment.
         """
-        logger.info("Waiting for an experiment to run...")
         response = self.stub.WaitExperiment(self._get_experiment_data())
         logger.info("New experiment received: %s", response)
         if not response.experiment_name:
@@ -315,7 +314,7 @@ class RuntimeDirectorClient:
         """
         response = self.stub.GetFlowState(director_pb2.GetFlowStateRequest())
 
-        return response.completed, response.flspec_obj
+        return response.completed, response.flspec_obj, response.exception
 
     def stream_experiment_stdout(self, experiment_name) -> Iterator[Dict[str, Any]]:
         """Stream experiment stdout RPC.
