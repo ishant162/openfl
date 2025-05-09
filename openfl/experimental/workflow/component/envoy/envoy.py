@@ -136,7 +136,6 @@ class Envoy:
         while True:
             try:
                 # Wait for experiment from Director server
-                logger.info("Waiting for an experiment to run...")
                 experiment_name = self._envoy_dir_client.wait_experiment()
                 data_stream = self._envoy_dir_client.get_experiment_data(experiment_name)
                 data_file_path = self._save_data_stream_to_file(data_stream)

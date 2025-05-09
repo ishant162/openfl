@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from openfl.experimental.workflow.federated import Plan
 from openfl.experimental.workflow.transport import AggregatorGRPCServer
@@ -61,7 +61,7 @@ class ExperimentStatus:
         if exception:
             self.exception = exception
 
-    def get_status(self) -> dict[bool, Any, str]:
+    def get_status(self) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
         """
         Get the status of the experiment.
 
@@ -137,7 +137,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ) -> dict[bool, Any, str]:
+    ) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
         """Run experiment.
 
         Args:
@@ -156,7 +156,7 @@ class Experiment:
         Returns:
             dict: A dictionary containing:
                 - status (Status): Final status of the experiment.
-                - updated_flow (Any): The updated flow object.
+                - updated_flow (FLSpec): The updated flow object.
                 - exception (str or None): Formatted traceback if any exception occurred.
         """
         self.experiment_status.update_experiment_status(Status.IN_PROGRESS)

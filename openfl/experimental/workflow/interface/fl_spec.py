@@ -182,8 +182,8 @@ class FLSpec:
 
     def _run_federated(self) -> None:
         """Executes the flow using FederatedRuntime."""
-        exp_name = None
         try:
+            exp_name = None
             # Prepare workspace and submit it for the FederatedRuntime
             archive_path, exp_name = self.runtime.prepare_workspace_archive()
             self.runtime.submit_experiment(archive_path, exp_name)
@@ -200,7 +200,7 @@ class FLSpec:
                 if exp_name is None
                 else f"FederatedRuntime: Experiment {exp_name} failed"
             )
-            raise Exception(f"{error_msg} due to error: {e}")
+            raise Exception(f"{error_msg} due to error: {e}") from e
 
     def _update_from_flspec_obj(self, flspec_obj: FLSpec) -> None:
         """Update self with attributes from the updated flspec instance.
@@ -225,13 +225,12 @@ class FLSpec:
         status, flspec_obj, exception = self.runtime.get_flow_state()
         if status:
             print("\033[92mExperiment ran successfully\033[0m")
-            return flspec_obj
         else:
             print(
                 "\033[91m Experiment could not run due to error:\033[0m",
                 f"\033[91m{exception}\033[0m",
             )
-            return None
+        return flspec_obj
 
     def _capture_instance_snapshot(self, kwargs) -> List:
         """Takes backup of self before exclude or include filtering.

@@ -105,6 +105,7 @@ class EnvoyDirectorClient:
         Returns:
             experiment_name (str): The name of the experiment.
         """
+        logger.info("Waiting for an experiment to run...")
         response = self.stub.WaitExperiment(self._get_experiment_data())
         logger.info("New experiment received: %s", response)
         if not response.experiment_name:
