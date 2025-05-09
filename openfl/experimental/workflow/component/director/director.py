@@ -9,9 +9,7 @@ import logging
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Tuple, Union
-
-import dill
+from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Union
 
 from openfl.experimental.workflow.component.director.experiment import (
     Experiment,
@@ -96,7 +94,7 @@ class Director:
         loop = asyncio.get_event_loop()
         while True:
             try:
-                logger.info("Waiting for experiment...")
+                logger.info("Waiting for an experiment to run...")
                 async with self.experiments_registry.get_next_experiment() as experiment:
                     await self._wait_for_authorized_envoys()
                     run_aggregator_future = loop.create_task(
@@ -118,7 +116,7 @@ class Director:
                     await self._flow_status.put(flow_status)
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
-                continue
+                raise
 
     async def _wait_for_authorized_envoys(self) -> None:
         """Wait until all authorized envoys are connected"""
@@ -132,16 +130,15 @@ class Director:
             )
             await asyncio.sleep(10)
 
-    async def get_flow_state(self) -> Tuple[bool, bytes]:
+    async def get_flow_state(self) -> dict:
         """Wait until the experiment flow status indicates completion
-        and return the status along with a serialized FLSpec object.
+        and return the flow status.
 
         Returns:
-            status (bool): The flow status.
-            flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
+            dict: A dictionary containing the flow status.
         """
-        status, flspec_obj, exception = await self._flow_status.get()
-        return status, dill.dumps(flspec_obj), exception
+        status = await self._flow_status.get()
+        return status
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.

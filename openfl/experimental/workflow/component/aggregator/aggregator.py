@@ -188,6 +188,29 @@ class Aggregator:
             f" WARNED!!!"
         )
 
+    def _initialize_flow(self) -> None:
+        """Initialize flow by resetting and creating clones."""
+        FLSpec._reset_clones()
+        FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
+
+    def _prepare_collaborator_queues(self, next_step) -> None:
+        """Prepare task queues for collaborators with clones.
+
+        Args:
+            next_step (str): Next step in the flow
+        """
+        for k, v in self.__collaborator_tasks_queue.items():
+            if k in self.selected_collaborators:
+                v.put((next_step, self.clones_dict[k]))
+            else:
+                logger.info(f"Tasks will not be sent to {k}")
+
+    def _restore_instance_snapshot(self) -> None:
+        """Restore instance snapshot if it exists."""
+        if hasattr(self, "instance_snapshot"):
+            self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
+            delattr(self, "instance_snapshot")
+
     def _update_final_flow(self) -> None:
         """Update the final flow state with current flow artifacts."""
         artifacts_iter, _ = generate_artifacts(ctx=self.flow)
@@ -203,6 +226,33 @@ class Aggregator:
         """
         return 10
 
+    async def _track_collaborator_status(self) -> None:
+        """Wait for selected collaborators to connect, request tasks, and submit results."""
+        while not self.collaborator_task_results.is_set():
+            len_sel_collabs = len(self.selected_collaborators)
+            len_connected_collabs = len(self.connected_collaborators)
+            if len_connected_collabs < len_sel_collabs:
+                # Waiting for collaborators to connect.
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - len_connected_collabs}/{len_sel_collabs}"
+                    + " collaborators to connect..."
+                )
+            elif self.tasks_sent_to_collaborators != len_sel_collabs:
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - self.tasks_sent_to_collaborators}/{len_sel_collabs}"
+                    + " to make requests for tasks..."
+                )
+            else:
+                # Waiting for selected collaborators to send the results.
+                logger.info(
+                    "Waiting for "
+                    + f"{len_sel_collabs - self.collaborators_counter}/{len_sel_collabs}"
+                    + " collaborators to send results..."
+                )
+            await asyncio.sleep(Aggregator._get_sleep_time())
+
     async def run_flow(self) -> FLSpec:
         """
         Start the execution and run flow until completion.
@@ -211,60 +261,35 @@ class Aggregator:
         Returns:
             flow (FLSpec): Updated instance.
         """
-        # Start function will be the first step if any flow
+        self._initialize_flow()
+        # Start function will be the first step of any flow
         f_name = "start"
-        # Creating a clones from the flow object
-        FLSpec._reset_clones()
-        FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
-
         logger.info(f"Starting round {self.current_round}...")
-        while True:
-            next_step = self.do_task(f_name)
 
+        while True:
+            # Execute Aggregator steps
+            next_step = self.do_task(f_name)
             if self.time_to_quit:
                 logger.info("Experiment Completed.")
                 break
 
-            # Prepare queue for collaborator task, with clones
-            for k, v in self.__collaborator_tasks_queue.items():
-                if k in self.selected_collaborators:
-                    v.put((next_step, self.clones_dict[k]))
-                else:
-                    logger.info(f"Tasks will not be sent to {k}")
-
-            while not self.collaborator_task_results.is_set():
-                len_sel_collabs = len(self.selected_collaborators)
-                len_connected_collabs = len(self.connected_collaborators)
-                if len_connected_collabs < len_sel_collabs:
-                    # Waiting for collaborators to connect.
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - len_connected_collabs}/{len_sel_collabs}"
-                        + " collaborators to connect..."
-                    )
-                elif self.tasks_sent_to_collaborators != len_sel_collabs:
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - self.tasks_sent_to_collaborators}/{len_sel_collabs}"
-                        + " to make requests for tasks..."
-                    )
-                else:
-                    # Waiting for selected collaborators to send the results.
-                    logger.info(
-                        "Waiting for "
-                        + f"{len_sel_collabs - self.collaborators_counter}/{len_sel_collabs}"
-                        + " collaborators to send results..."
-                    )
-                await asyncio.sleep(Aggregator._get_sleep_time())
-
+            self._prepare_collaborator_queues(next_step)
+            await self._track_collaborator_status()
             self.collaborator_task_results.clear()
             f_name = self.next_step
-            if hasattr(self, "instance_snapshot"):
-                self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
-                delattr(self, "instance_snapshot")
+            self._restore_instance_snapshot()
 
         self._update_final_flow()
         return self.final_flow_state
+
+    def extract_flow(self) -> FLSpec:
+        """Extract the flow object from the aggregator.
+
+        Returns:
+            FLSpec: The flow object.
+        """
+        self.__delete_private_attrs_from_clone(self.flow)
+        return self.flow
 
     def call_checkpoint(
         self, name: str, ctx: Any, f: Callable, stream_buffer: bytes = None

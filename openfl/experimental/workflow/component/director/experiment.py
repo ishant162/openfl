@@ -8,9 +8,10 @@ import asyncio
 import logging
 import traceback
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, List, Optional, Union
 
 from openfl.experimental.workflow.federated import Plan
 from openfl.experimental.workflow.transport import AggregatorGRPCServer
@@ -27,6 +28,51 @@ class Status(Enum):
     IN_PROGRESS = auto()
     FAILED = auto()
     REJECTED = auto()
+
+
+@dataclass
+class ExperimentStatus:
+    """
+    A class to track the status and exceptions of an experiment run.
+
+    Attributes:
+        status (Status): The current running status of the experiment.
+        updated_flow (FLSpec): The updated flow object associated with the experiment.
+        exception (str, optional): Any exception that occurred during the experiment.
+
+    """
+
+    status: Status = Status.PENDING
+    updated_flow: Optional[Any] = None
+    exception: Optional[str] = None
+
+    def update_experiment_status(
+        self,
+        status: Status,
+        updated_flow: Optional[Any] = None,
+        exception: Optional[str] = None,
+    ) -> None:
+        """
+        A method to update the experiment status and associated details.
+        """
+        self.status = status
+        if updated_flow:
+            self.updated_flow = updated_flow
+        if exception:
+            self.exception = exception
+
+    def get_status(self) -> dict:
+        """
+        Get the status of the experiment.
+
+        Returns:
+            dict: The status of the experiment.
+        """
+        return {
+            "status": self.status == Status.FINISHED,
+            "updated_flow": self.updated_flow,
+            "exception": self.exception,
+        }
 
 
 class Experiment:
@@ -77,7 +123,7 @@ class Experiment:
         # experiment workspace provided by the director
         self.plan_path = Path(plan_path)
         self.users = set() if users is None else set(users)
-        self.status = Status.PENDING
+        self.experiment_status = ExperimentStatus()
         self.aggregator = None
         self.updated_flow = None
         self.experiment_exception_trace = None
@@ -91,7 +137,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ) -> Tuple[bool, Any]:
+    ) -> dict:
         """Run experiment.
 
         Args:
@@ -108,11 +154,12 @@ class Experiment:
                 requirements should be installed. Defaults to False.
 
         Returns:
-            List[Union[bool, Any]]:
-                - status: status of the experiment.
-                - updated_flow: The updated flow object.
+            dict: A dictionary containing:
+                - status (Status): Final status of the experiment.
+                - updated_flow (Any): The updated flow object.
+                - exception (str or None): Formatted traceback if any exception occurred.
         """
-        self.status = Status.IN_PROGRESS
+        self.experiment_status.update_experiment_status(Status.IN_PROGRESS)
         try:
             logger.info(f"New experiment {self.name} for collaborators {self.collaborators}")
 
@@ -135,17 +182,23 @@ class Experiment:
                     ),
                     self.aggregator.run_flow(),
                 )
-            self.status = Status.FINISHED
+            self.experiment_status.update_experiment_status(
+                Status.FINISHED,
+                updated_flow=self.updated_flow,
+            )
             logger.info("Experiment %s was finished successfully.", self.name)
         except Exception:
-            self.experiment_exception_trace = traceback.format_exc()
-            self.status = Status.FAILED
+            self.experiment_status.update_experiment_status(
+                Status.FAILED,
+                updated_flow=self.aggregator.extract_flow(),
+                exception=traceback.format_exc(),
+            )
             self.aggregator.quit_job_sent_to = self.collaborators
             logger.error(
-                f"Experiment {self.name} failed with error: {self.experiment_exception_trace}"
+                f"Experiment {self.name} failed with error: {self.experiment_status.exception}"
             )
 
-        return self.status == Status.FINISHED, self.updated_flow, self.experiment_exception_trace
+        return self.experiment_status.get_status()
 
     def _create_aggregator_grpc_server(
         self,

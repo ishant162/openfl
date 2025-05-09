@@ -224,15 +224,15 @@ class FLSpec:
                 runs successfully. None if the experiment could not run.
         """
         status, flspec_obj, exception = self.runtime.get_flow_state()
-        if status and flspec_obj:
-            print("\033[92mExperiment ran successfully\033[0m")
-            return flspec_obj
-        else:
+        if exception and not status:
             print(
                 "\033[91m Experiment could not run due to error:\033[0m",
                 f"\033[91m{exception}\033[0m",
             )
             return None
+        else:
+            print("\033[92mExperiment ran successfully\033[0m")
+            return flspec_obj
 
     def _capture_instance_snapshot(self, kwargs) -> List:
         """Takes backup of self before exclude or include filtering.

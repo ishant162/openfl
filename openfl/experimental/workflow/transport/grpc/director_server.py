@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 from typing import AsyncIterator, Optional, Union
 
+import dill
 import grpc
 from grpc import aio, ssl_server_credentials
 
@@ -250,14 +251,20 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         Yields:
             director_pb2.ExperimentData: The experiment data.
         """
-        data_file_path = self.director.get_experiment_data(request.experiment_name)
-        max_buffer_size = 2 * 1024 * 1024
-        with open(data_file_path, "rb") as df:
-            while True:
-                data = df.read(max_buffer_size)
-                if len(data) == 0:
-                    break
-                yield director_pb2.ExperimentData(size=len(data), exp_data=data)
+        try:
+            data_file_path = self.director.get_experiment_data(request.experiment_name)
+            max_buffer_size = 2 * 1024 * 1024
+            with open(data_file_path, "rb") as df:
+                while True:
+                    data = df.read(max_buffer_size)
+                    if not data:
+                        break
+                    yield director_pb2.ExperimentData(size=len(data), exp_data=data)
+        except Exception as e:
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                f"Failed to stream experiment data: {type(e).__name__}: {e}",
+            )
 
     async def WaitExperiment(self, request, context) -> director_pb2.WaitExperimentResponse:
         """Handles a request to wait for an experiment to be ready.
@@ -325,9 +332,11 @@ class DirectorGRPCServer(director_pb2_grpc.DirectorServicer):
         Returns:
             director_pb2.GetFlowStateResponse: The response to the request.
         """
-        status, flspec_obj, exception = await self.director.get_flow_state()
+        status = await self.director.get_flow_state()
         return director_pb2.GetFlowStateResponse(
-            completed=status, flspec_obj=flspec_obj, exception=exception
+            completed=status["status"],
+            flspec_obj=dill.dumps(status["updated_flow"]),
+            exception=status["exception"],
         )
 
     async def GetExperimentStdout(
