@@ -61,7 +61,7 @@ class ExperimentStatus:
         if exception:
             self.exception = exception
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[bool, Any, str]:
         """
         Get the status of the experiment.
 
@@ -137,7 +137,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = False,
-    ) -> dict:
+    ) -> dict[bool, Any, str]:
         """Run experiment.
 
         Args:

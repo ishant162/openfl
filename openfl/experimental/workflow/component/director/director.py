@@ -130,7 +130,7 @@ class Director:
             )
             await asyncio.sleep(10)
 
-    async def get_flow_state(self) -> dict:
+    async def get_flow_state(self) -> dict[bool, Any, str]:
         """Wait until the experiment flow status indicates completion
         and return the flow status.
 
