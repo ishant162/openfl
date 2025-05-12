@@ -14,6 +14,7 @@ from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Union
 from openfl.experimental.workflow.component.director.experiment import (
     Experiment,
     ExperimentsRegistry,
+    Status,
 )
 from openfl.experimental.workflow.transport.grpc.exceptions import EnvoyNotFoundError
 
@@ -223,8 +224,8 @@ class Director:
             )
         experiment = self.experiments_registry[experiment_name]
         while not experiment.aggregator:
-            if experiment.experiment_status.status.value == 4:
-                # Exit early if the experiment failed to start (status value 4)
+            if experiment.experiment_status.status == Status.FAILED:
+                # Exit early if the experiment failed to start
                 return
             await asyncio.sleep(5)
         aggregator = self.experiments_registry[experiment_name].aggregator
