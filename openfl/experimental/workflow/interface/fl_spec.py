@@ -193,7 +193,8 @@ class FLSpec:
             # Retrieve the flspec object to update the experiment state
             flspec_obj = self._get_flow_state()
             # Update state of self
-            self._update_from_flspec_obj(flspec_obj)
+            if flspec_obj:
+                self._update_from_flspec_obj(flspec_obj)
         except Exception as e:
             error_msg = (
                 "FederatedRuntime: Failed to prepare workspace archive"

@@ -114,6 +114,9 @@ class Director:
                     # Wait for the experiment to complete and save the result
                     flow_status = await run_aggregator_future
                     await self._flow_status.put(flow_status)
+                    # Mark all envoys' experiment states as None,
+                    # indicating no active experiment
+                    self.col_exp = dict.fromkeys(self.col_exp, None)
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
                 raise
@@ -218,7 +221,11 @@ class Director:
                 f'No experiment name "{experiment_name}" in experiments list, or caller "{caller}"'
                 f" does not have access to this experiment"
             )
-        while not self.experiments_registry[experiment_name].aggregator:
+        experiment = self.experiments_registry[experiment_name]
+        while not experiment.aggregator:
+            if experiment.experiment_status.status.value == 4:
+                # Exit early if the experiment failed to start (status value 4)
+                return
             await asyncio.sleep(5)
         aggregator = self.experiments_registry[experiment_name].aggregator
         while True:
