@@ -11,3 +11,8 @@ from openfl.experimental.workflow.transport.grpc.director_client import (
     RuntimeDirectorClient,
 )
 from openfl.experimental.workflow.transport.grpc.director_server import DirectorGRPCServer
+from openfl.experimental.workflow.transport.grpc.grpc_channel_options import (
+    ConstantBackoff,
+    RetryOnRpcErrorClientInterceptor,
+    channel_options,
+)

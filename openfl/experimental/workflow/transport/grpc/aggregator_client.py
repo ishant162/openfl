@@ -4,68 +4,17 @@
 
 """AggregatorGRPCClient module."""
 
-import time
 from logging import getLogger
-from typing import Optional, Tuple
 
 import grpc
 
 from openfl.experimental.workflow.protocols import aggregator_pb2, aggregator_pb2_grpc
-from openfl.experimental.workflow.transport.grpc.grpc_channel_options import channel_options
+from openfl.experimental.workflow.transport.grpc.grpc_channel_options import (
+    ConstantBackoff,
+    RetryOnRpcErrorClientInterceptor,
+    channel_options,
+)
 from openfl.protocols.utils import datastream_to_proto, proto_to_datastream
-
-
-class ConstantBackoff:
-    """Constant Backoff policy."""
-
-    def __init__(self, reconnect_interval, logger, uri):
-        """Initialize Constant Backoff."""
-        self.reconnect_interval = reconnect_interval
-        self.logger = logger
-        self.uri = uri
-
-    def sleep(self):
-        """Sleep for specified interval."""
-        self.logger.info(f"Attempting to connect to aggregator at {self.uri}")
-        time.sleep(self.reconnect_interval)
-
-
-class RetryOnRpcErrorClientInterceptor(
-    grpc.UnaryUnaryClientInterceptor, grpc.StreamUnaryClientInterceptor
-):
-    """Retry gRPC connection on failure."""
-
-    def __init__(
-        self,
-        sleeping_policy,
-        status_for_retry: Optional[Tuple[grpc.StatusCode]] = None,
-    ):
-        """Initialize function for gRPC retry."""
-        self.sleeping_policy = sleeping_policy
-        self.status_for_retry = status_for_retry
-
-    def _intercept_call(self, continuation, client_call_details, request_or_iterator):
-        """Intercept the call to the gRPC server."""
-        while True:
-            response = continuation(client_call_details, request_or_iterator)
-
-            if isinstance(response, grpc.RpcError):
-                # If status code is not in retryable status codes
-                self.sleeping_policy.logger.info(f"Response code: {response.code()}")
-                if self.status_for_retry and response.code() not in self.status_for_retry:
-                    return response
-
-                self.sleeping_policy.sleep()
-            else:
-                return response
-
-    def intercept_unary_unary(self, continuation, client_call_details, request):
-        """Wrap intercept call for unary->unary RPC."""
-        return self._intercept_call(continuation, client_call_details, request)
-
-    def intercept_stream_unary(self, continuation, client_call_details, request_iterator):
-        """Wrap intercept call for stream->unary RPC."""
-        return self._intercept_call(continuation, client_call_details, request_iterator)
 
 
 def _atomic_connection(func):
@@ -148,6 +97,7 @@ class AggregatorGRPCClient:
                     logger=self.logger,
                     reconnect_interval=int(kwargs.get("client_reconnect_interval", 1)),
                     uri=self.uri,
+                    participant="Aggregator",
                 ),
                 status_for_retry=(grpc.StatusCode.UNAVAILABLE,),
             ),

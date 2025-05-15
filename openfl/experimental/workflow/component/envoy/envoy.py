@@ -35,6 +35,7 @@ class Envoy:
         _envoy_dir_client (EnvoyDirectorClient): The envoy director client.
         install_requirements (bool): A flag indicating if the requirements
             should be installed.
+        client_reconnect_interval (int): The interval for client reconnection attempts.
         is_experiment_running (bool): A flag indicating if an experiment is
             running.
         executor (ThreadPoolExecutor): The executor for running tasks.
@@ -56,6 +57,7 @@ class Envoy:
         certificate: Optional[Union[Path, str]] = None,
         tls: bool = True,
         install_requirements: bool = True,
+        client_reconnect_interval: int = 5,
     ) -> None:
         """Initialize a envoy object.
 
@@ -74,12 +76,14 @@ class Envoy:
                 connections. Defaults to True.
             install_requirements (bool, optional): A flag indicating if the
                 requirements should be installed. Defaults to True.
+            client_reconnect_interval (int): The interval for client reconnection attempts.
         """
         self.name = envoy_name
         self.envoy_config = envoy_config
         self.tls = tls
         self._fill_certs(root_certificate, private_key, certificate)
         self.install_requirements = install_requirements
+        self.client_reconnect_interval = client_reconnect_interval
         self._envoy_dir_client = self._create_envoy_dir_client(director_host, director_port)
         self.is_experiment_running = False
         self.executor = ThreadPoolExecutor()
@@ -108,6 +112,7 @@ class Envoy:
             root_certificate=self.root_certificate,
             private_key=self.private_key,
             certificate=self.certificate,
+            client_reconnect_interval=self.client_reconnect_interval,
         )
 
     def _fill_certs(self, root_certificate, private_key, certificate) -> None:
