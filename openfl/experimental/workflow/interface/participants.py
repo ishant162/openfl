@@ -50,6 +50,14 @@ class Participant:
         """
         return self._name
 
+    def get_state(self) -> Dict[str, Any]:
+        """Returns the state of the participant.
+
+        Returns:
+            Dict[str, Any]: The state of the participant.
+        """
+        return self.__dict__
+
     def initialize_private_attributes(self, private_attrs: Dict[Any, Any] = None) -> None:
         """Initialize private attributes of Participant (aggregator or collaborator)
         by invoking the callable specified by user."""
