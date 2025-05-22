@@ -35,11 +35,7 @@ class TestFlowDynamicPrivateAttributeSync(FLSpec):
     @aggregator
     def aggregator_step(self):
         self.modify_private_attributes("agg")
-        self.next(self.collaborator_step_a, foreach="collaborators")
-
-    @collaborator
-    def collaborator_step_a(self):
-        self.next(self.collaborator_step_b)
+        self.next(self.collaborator_step_b, foreach="collaborators")
 
     @collaborator
     def collaborator_step_b(self):
