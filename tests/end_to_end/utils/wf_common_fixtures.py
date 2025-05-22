@@ -38,7 +38,8 @@ def fx_local_federated_workflow(request):
         init_collaborator_private_attr_index,
         init_collaborator_private_attr_name,
         init_collaborate_pvt_attr_np,
-        init_agg_pvt_attr_np
+        init_agg_pvt_attr_np,
+        init_mock_pvt_attr
     )
     collab_callback_func = request.param[0] if hasattr(request, 'param') and request.param else None
     collab_value = request.param[1] if hasattr(request, 'param') and request.param else None

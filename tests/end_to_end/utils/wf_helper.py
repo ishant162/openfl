@@ -3,7 +3,12 @@
 
 from metaflow import Flow
 import logging
+import torch
+from torch.utils.data import DataLoader
+import torchvision
+import datetime
 import numpy as np
+from typing import Dict, Any
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +59,128 @@ def validate_flow(flow_obj, expected_flow_steps):
         step for step in cli_step_names if step not in expected_flow_steps
     ]
     return steps_present_in_cli, missing_steps_in_cli, extra_steps_in_cli
+
+
+def get_test_attribute_sets() -> Dict[str, Dict[str, Any]]:
+    """
+    Generates a test dictionary of private attributes for multiple entities, including various
+    data types.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: A dictionary where each key is an entity name
+        (e.g., 'Aggregator', 'Paris') and the value is another dictionary of mock
+        private attributes using a variety of data types.
+    """
+    torch.backends.cudnn.enabled = False
+    torch.manual_seed(1)
+
+    transform = torchvision.transforms.Compose(
+        [torchvision.transforms.ToTensor(), torchvision.transforms.Normalize((0.1307,), (0.3081,))]
+    )
+
+    train_loader = DataLoader(
+        torchvision.datasets.MNIST("files/", train=True, download=True, transform=transform),
+        batch_size=128,
+        shuffle=True,
+    )
+
+    test_loader = DataLoader(
+        torchvision.datasets.MNIST("files/", train=False, download=True, transform=transform),
+        batch_size=128,
+        shuffle=True,
+    )
+
+    return {
+        "agg": {
+            "private_attribute_1": train_loader,
+            "private_attribute_2": test_loader,
+            "private_attribute_3": 3.14,
+            "private_attribute_4": np.array([1, 2, 3]),
+        },
+        "collaborator0": {
+            "private_attribute_1": True,
+            "private_attribute_2": [1, 2, 3],
+            "private_attribute_3": {"a": 1},
+            "private_attribute_4": None,
+        },
+        "collaborator1": {
+            "private_attribute_1": (4, 5),
+            "private_attribute_2": b"bytes",
+            "private_attribute_3": complex(1, 2),
+            "private_attribute_4": np.int64(10),
+        },
+        "collaborator2": {
+            "private_attribute_1": {1, 2, 3},
+            "private_attribute_2": frozenset([4, 5]),
+            "private_attribute_3": range(5),
+            "private_attribute_4": np.float32(5.5),
+        },
+        "collaborator3": {
+            "private_attribute_1": bytearray(b"abc"),
+            "private_attribute_2": memoryview(b"xyz"),
+            "private_attribute_3": slice(1, 5, 2),
+            "private_attribute_4": np.bool_(False),
+        },
+        "collaborator4": {
+            "private_attribute_1": NotImplemented,
+            "private_attribute_2": Ellipsis,
+            "private_attribute_3": memoryview(bytearray(b"test")),
+            "private_attribute_4": np.complex64(3 + 4j),
+        },
+        "collaborator5": {
+            "private_attribute_1": set(),
+            "private_attribute_2": type,
+            "private_attribute_3": super,
+            "private_attribute_4": datetime.datetime(2023, 1, 1),
+        },
+    }
+
+
+def dataloader_equal(dl1, dl2):
+    """Check if two DataLoader objects are equal.
+    Args:
+        dl1 (torch.utils.data.DataLoader): First DataLoader object.
+        dl2 (torch.utils.data.DataLoader): Second DataLoader object.
+    """
+    return (
+        isinstance(dl1, torch.utils.data.DataLoader)
+        and isinstance(dl2, torch.utils.data.DataLoader)
+        and dl1.batch_size == dl2.batch_size
+        and type(dl1.dataset) is type(dl2.dataset)
+        and isinstance(dl1.sampler, type(dl2.sampler))
+    )
+
+def check_modified_private_attributes(participant, expected_attributes) -> None:
+    """Check if the participant's private_attributes match the expected values.
+    Args:
+        participant (Participant): The participant (aggregator or collaborator) to check.
+        expected_attributes (dict): The expected private attributes.
+    """
+    actual_attributes = participant.private_attributes
+    mismatches = []
+
+    for key, expected_value in expected_attributes.items():
+        actual_value = actual_attributes.get(key, "<Missing>")
+        if isinstance(expected_value, np.ndarray) and isinstance(actual_value, np.ndarray):
+            equal = np.array_equal(actual_value, expected_value)
+        elif isinstance(expected_value, torch.utils.data.DataLoader):
+            equal = dataloader_equal(actual_value, expected_value)
+        else:
+            equal = actual_value == expected_value
+
+        if not equal:
+            mismatches.append((key, actual_value, expected_value))
+
+    if mismatches:
+        print(f"{participant.name} attribute mismatches detected:")
+        for key, actual, expected in mismatches:
+            print(f"- {key}: actual={actual} | expected={expected}")
+        raise AssertionError(f"{len(mismatches)} mismatches found in {participant.name}")
+    else:
+        print(
+            f"{participant.name} attributes "
+            f"match expected values!"
+        )
 
 
 def init_collaborator_private_attr_index(param):
@@ -112,3 +239,15 @@ def init_agg_pvt_attr_np():
               of a NumPy array of shape (10, 28, 28) filled with random values.
     """
     return {"test_loader": np.random.rand(10, 28, 28)}
+
+
+def init_mock_pvt_attr(**kwargs):
+    """
+    Initialize a dictionary with private attributes for testing.
+
+    Returns:
+        dict: A dictionary containing four keys "private_attribute_1", "private_attribute_2",
+              "private_attribute_3", and "private_attribute_4", each with a value of a NumPy
+              array of shape (10, 28, 28) filled with random values.
+    """
+    return {f"private_attribute_{i}": np.random.rand(10, 28, 28) for i in range(1, 5)}

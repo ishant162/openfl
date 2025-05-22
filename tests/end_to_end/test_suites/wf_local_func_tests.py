@@ -18,6 +18,7 @@ from tests.end_to_end.workflow.subset_flow import TestFlowSubsetCollaborators
 from tests.end_to_end.workflow.private_attr_wo_callable import TestFlowPrivateAttributesWoCallable
 from tests.end_to_end.workflow.private_attributes_flow import TestFlowPrivateAttributes
 from tests.end_to_end.workflow.private_attr_both import TestFlowPrivateAttributesBoth
+from tests.end_to_end.workflow.dynamic_private_attr_sync import TestFlowDynamicPrivateAttributeSync
 
 from tests.end_to_end.utils import wf_helper as wf_helper
 
@@ -220,3 +221,23 @@ def test_private_attr_both(request, fx_local_federated_workflow_prvt_attr):
         log.info(f"Starting round {i}...")
         flflow.run()
     log.info("Successfully ended test_private_attr_both")
+
+@pytest.mark.parametrize("fx_local_federated_workflow", [("init_mock_pvt_attr", None, "init_mock_pvt_attr")], indirect=True)
+def test_dynamic_private_attr_sync(request, fx_local_federated_workflow):
+    """
+    Set private attribute through callable function and direct assignment
+    """
+    log.info("Starting test_dynamic_private_attr_sync")
+    flflow = TestFlowDynamicPrivateAttributeSync(checkpoint=True)
+    flflow.runtime = fx_local_federated_workflow.runtime
+    flflow.run()
+    test_attribute_sets = wf_helper.get_test_attribute_sets()
+    wf_helper.check_modified_private_attributes(
+        fx_local_federated_workflow.aggregator,
+        test_attribute_sets[fx_local_federated_workflow.aggregator.name]
+    )
+    for collab in fx_local_federated_workflow.collaborators:
+        wf_helper.check_modified_private_attributes(
+            collab, test_attribute_sets[collab.name]
+        )
+    log.info("Successfully ended test_dynamic_private_attr_sync")
