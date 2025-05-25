@@ -385,7 +385,6 @@ class LocalRuntime(Runtime):
             ResourcesNotAvailableError: If the requested resources exceed the
                 available resources.
         """
-
         if aggregator.private_attributes and aggregator.private_attributes_callable:
             self.logger.warning(
                 "Warning: Aggregator private attributes "
@@ -396,6 +395,10 @@ class LocalRuntime(Runtime):
 
         if self.backend == "single_process":
             return aggregator
+
+        # Store aggregator reference to later sync the full internal state
+        # from the remote
+        self.__aggregator_reference = aggregator
 
         total_available_cpus = os.cpu_count()
         total_available_gpus = get_number_of_gpus()
@@ -474,6 +477,10 @@ class LocalRuntime(Runtime):
         if self.backend == "single_process":
             return collaborators
 
+        # Store collaborators references to later sync the full internal state
+        # from the remote
+        self.__collaborators_reference = collaborators
+
         total_available_cpus = os.cpu_count()
         total_required_cpus = sum([collaborator.num_cpus for collaborator in collaborators])
         if total_available_cpus < total_required_cpus:
@@ -482,9 +489,8 @@ class LocalRuntime(Runtime):
                     ({total_required_cpus} < {total_available_cpus})."
             )
 
-        if self.backend == "ray":
-            collaborator_ray_refs = ray_group_assign(collaborators, num_actors=self.num_actors)
-            return collaborator_ray_refs
+        collaborator_ray_refs = ray_group_assign(collaborators, num_actors=self.num_actors)
+        return collaborator_ray_refs
 
     @property
     def aggregator(self) -> str:
@@ -535,6 +541,14 @@ class LocalRuntime(Runtime):
         self.__collaborators = {
             get_collab_name(collaborator): collaborator for collaborator in collaborators
         }
+
+    def _sync_participants_state(self) -> None:
+        """Update local aggregator and collaborator references with remote states.
+        (Ray backend).
+        """
+        self.__aggregator_reference.__dict__.update(ray.get(self._aggregator.get_state.remote()))
+        for idx, collab in enumerate(self.__collaborators.values()):
+            self.__collaborators_reference[idx].__dict__.update(ray.get(collab.get_state.remote()))
 
     def get_collaborator_kwargs(self, collaborator_name: str):
         """Returns kwargs of collaborator.
@@ -659,7 +673,8 @@ class LocalRuntime(Runtime):
             f, parent_func, instance_snapshot, kwargs = flspec_obj.execute_task_args
         else:
             flspec_obj = self.execute_agg_task(flspec_obj, f)
-
+            if self.backend == "ray":
+                self._sync_participants_state()
             artifacts_iter, _ = generate_artifacts(ctx=flspec_obj)
             return artifacts_iter()
 
