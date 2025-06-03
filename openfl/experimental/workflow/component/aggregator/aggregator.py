@@ -182,10 +182,10 @@ class Aggregator:
     def _log_big_warning(self) -> None:
         """Warn user about single collaborator cert mode."""
         logger.warning(
-            f"\n{the_dragon}\nYOU ARE RUNNING IN SINGLE COLLABORATOR CERT MODE! THIS IS"
-            f" NOT PROPER PKI AND "
-            f"SHOULD ONLY BE USED IN DEVELOPMENT SETTINGS!!!! YE HAVE BEEN"
-            f" WARNED!!!"
+            "YOU ARE RUNNING IN SINGLE COLLABORATOR CERT MODE! THIS IS"
+            " NOT PROPER PKI AND "
+            "SHOULD ONLY BE USED IN DEVELOPMENT SETTINGS!!!! YE HAVE BEEN"
+            " WARNED!!!"
         )
 
     def _initialize_flow(self) -> None:
@@ -193,20 +193,23 @@ class Aggregator:
         FLSpec._reset_clones()
         FLSpec._create_clones(self.flow, self.flow.runtime.collaborators)
 
-    def _prepare_collaborator_queues(self, next_step) -> None:
-        """Prepare task queues for collaborators with clones.
+    def _enqueue_next_step_for_collaborators(self, next_step) -> None:
+        """Enqueue the next step and associated clone for each selected collaborator.
 
         Args:
-            next_step (str): Next step in the flow
+            next_step (str): Next step to be executed by collaborators
         """
         for k, v in self.__collaborator_tasks_queue.items():
             if k in self.selected_collaborators:
                 v.put((next_step, self.clones_dict[k]))
             else:
-                logger.info(f"Tasks will not be sent to {k}")
+                logger.info(
+                    f"Skipping task dispatch for collaborator '{k}' "
+                    f"as it is not part of selected_collaborators."
+                )
 
     def _restore_instance_snapshot(self) -> None:
-        """Restore instance snapshot if it exists."""
+        """Restore the FLSpec state at the aggregator from a saved instance snapshot."""
         if hasattr(self, "instance_snapshot"):
             self.flow.restore_instance_snapshot(self.flow, list(self.instance_snapshot))
             delattr(self, "instance_snapshot")
@@ -267,13 +270,13 @@ class Aggregator:
         logger.info(f"Starting round {self.current_round}...")
 
         while True:
-            # Execute Aggregator steps
+            # Perform Aggregator steps if any
             next_step = self.do_task(f_name)
             if self.time_to_quit:
                 logger.info("Experiment Completed.")
                 break
 
-            self._prepare_collaborator_queues(next_step)
+            self._enqueue_next_step_for_collaborators(next_step)
             await self._track_collaborator_status()
             self.collaborator_task_results.clear()
             f_name = self.next_step
@@ -554,76 +557,3 @@ class Aggregator:
     def all_quit_jobs_sent(self) -> bool:
         """Assert all quit jobs are sent to collaborators."""
         return set(self.quit_job_sent_to) == set(self.authorized_cols)
-
-
-the_dragon = """
-
- ,@@.@@+@@##@,@@@@.`@@#@+  *@@@@ #@##@  `@@#@# @@@@@   @@    @@@@` #@@@ :@@ `@#`@@@#.@
-  @@ #@ ,@ +. @@.@* #@ :`   @+*@ .@`+.   @@ *@::@`@@   @@#  @@  #`;@`.@@ @@@`@`#@* +:@`
-  @@@@@ ,@@@  @@@@  +@@+    @@@@ .@@@    @@ .@+:@@@:  .;+@` @@ ,;,#@` @@ @@@@@ ,@@@* @
-  @@ #@ ,@`*. @@.@@ #@ ,;  `@+,@#.@.*`   @@ ,@::@`@@` @@@@# @@`:@;*@+ @@ @`:@@`@ *@@ `
- .@@`@@,+@+;@.@@ @@`@@;*@  ;@@#@:*@+;@  `@@;@@ #@**@+;@ `@@:`@@@@  @@@@.`@+ .@ +@+@*,@
-  `` ``     ` ``  .     `     `      `     `    `  .` `  ``   ``    ``   `       .   `
-
-
-
-                                            .**
-                                      ;`  `****:
-                                     @**`*******
-                         ***        +***********;
-                        ,@***;` .*:,;************
-                        ;***********@@***********
-                        ;************************,
-                        `*************************
-                         *************************
-                         ,************************
-                          **#*********************
-                          *@****`     :**********;
-                          +**;          .********.
-                          ;*;            `*******#:                       `,:
-                                          ****@@@++::                ,,;***.
-                                          *@@@**;#;:         +:      **++*,
-                                          @***#@@@:          +*;     ,****
-                                          @*@+****           ***`     ****,
-                                         ,@#******.  ,       ****     **;,**.
-                                         * ******** :,       ;*:*+    **  :,**
-                                        #  ********::      *,.*:**`   *      ,*;
-                                        .  *********:      .+,*:;*:   :      `:**
-                                       ;   :********:       ***::**   `       ` **
-                                       +   :****::***  ,    *;;::**`             :*
-                                      ``   .****::;**:::    *;::::*;              ;*
-                                      *     *****::***:.    **::::**               ;:
-                                      #     *****;:****     ;*::;***               ,*`
-                                      ;     ************`  ,**:****;               ::*
-                                      :     *************;:;*;*++:                   *.
-                                      :     *****************;*                      `*
-                                     `.    `*****************;  :                     *.
-                                     .`    .*+************+****;:                     :*
-                                     `.    :;+***********+******;`    :              .,*
-                                      ;    ::*+*******************. `::              .`:.
-                                      +    :::**********************;;:`                *
-                                      +    ,::;*************;:::*******.                *
-                                      #    `:::+*************:::;********  :,           *
-                                      @     :::***************;:;*********;:,           *
-                                      @     ::::******:*********************:         ,:*
-                                      @     .:::******:;*********************,         :*
-                                      #      :::******::******###@*******;;****        *,
-                                      #      .::;*****::*****#****@*****;:::***;  ``  **
-                                      *       ::;***********+*****+#******::*****,,,,**
-                                      :        :;***********#******#******************
-                                      .`       `;***********#******+****+************
-                                      `,        ***#**@**+***+*****+**************;`
-                                       ;         *++**#******#+****+`      `.,..
-                                       +         `@***#*******#****#
-                                       +          +***@********+**+:
-                                       *         .+**+;**;;;**;#**#
-                                      ,`         ****@         +*+:
-                                      #          +**+         :+**
-                                      @         ;**+,       ,***+
-                                      #      #@+****      *#****+
-                                     `;     @+***+@      `#**+#++
-                                     #      #*#@##,      .++:.,#
-                                    `*      @#            +.
-                                  @@@
-                                 # `@
-                                  ,                                                        """

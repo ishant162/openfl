@@ -36,7 +36,7 @@ class Director:
         _flow_status (Queue): Stores the flow status
         experiments_registry (ExperimentsRegistry): An object of
             ExperimentsRegistry to store the experiments.
-        col_exp (dict): A dictionary to store the experiments for
+        collaborator_experiments (dict): A dictionary to store the experiments for
             collaborators.
         col_exp_queues (defaultdict): A defaultdict to store the experiment
             queues for collaborators.
@@ -83,7 +83,7 @@ class Director:
         self._flow_status = asyncio.Queue()
 
         self.experiments_registry = ExperimentsRegistry()
-        self.col_exp = {}
+        self.collaborator_experiments = {}
         self.col_exp_queues = defaultdict(asyncio.Queue)
         self._envoy_registry = {}
         self.envoy_health_check_period = envoy_health_check_period
@@ -117,7 +117,9 @@ class Director:
                     await self._flow_status.put(flow_status)
                     # Mark all envoys' experiment states as None,
                     # indicating no active experiment
-                    self.col_exp = dict.fromkeys(self.col_exp, None)
+                    self.collaborator_experiments = dict.fromkeys(
+                        self.collaborator_experiments, None
+                    )
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
                 raise
@@ -153,17 +155,17 @@ class Director:
         Returns:
             str: The name of the experiment on the queue.
         """
-        experiment_name = self.col_exp.get(envoy_name)
+        experiment_name = self.collaborator_experiments.get(envoy_name)
         # If any envoy gets disconnected
         if experiment_name and experiment_name in self.experiments_registry:
             experiment = self.experiments_registry[experiment_name]
             if experiment.aggregator.current_round < experiment.aggregator.rounds_to_train:
                 return experiment_name
 
-        self.col_exp[envoy_name] = None
+        self.collaborator_experiments[envoy_name] = None
         queue = self.col_exp_queues[envoy_name]
         experiment_name = await queue.get()
-        self.col_exp[envoy_name] = experiment_name
+        self.collaborator_experiments[envoy_name] = experiment_name
 
         return experiment_name
 
@@ -283,7 +285,7 @@ class Director:
             envoy["is_online"] = time.time() < envoy.get("last_updated", 0) + envoy.get(
                 "valid_duration", 0
             )
-            envoy["experiment_name"] = self.col_exp.get(envoy["name"], "None")
+            envoy["experiment_name"] = self.collaborator_experiments.get(envoy["name"], "None")
 
         return self._envoy_registry
 
