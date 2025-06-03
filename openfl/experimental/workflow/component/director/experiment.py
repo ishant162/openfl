@@ -203,7 +203,7 @@ class Experiment:
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
-        install_requirements: bool = False,
+        install_requirements: bool = True,
     ) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
         """Run experiment.
 
@@ -218,7 +218,7 @@ class Experiment:
                 certificate for TLS. Defaults to None.
             director_config (Path): Path to director's config file
             install_requirements (bool, optional): A flag indicating if the
-                requirements should be installed. Defaults to False.
+                requirements should be installed. Defaults to True.
 
         Returns:
             dict: A dictionary containing:

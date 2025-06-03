@@ -7,7 +7,7 @@ import time
 import psutil
 import subprocess   # nosec B404
 
-import tests.end_to_end.utils.constants as constants
+import tests.end_to_end.utils.defaults as defaults
 import tests.end_to_end.utils.docker_helper as docker_helper
 import tests.end_to_end.utils.exceptions as ex
 
@@ -76,7 +76,7 @@ def stop_start_native_participant(participant, action):
         raise ex.ParticipantStopException(f"Invalid action {action}")
 
     # Irrespective of the action, kill the processes to ensure clean state
-    log.info(f"Kill the processes for {participant.name} if running to avoid conflicts")
+    log.debug(f"Killing the processes (if running) for {participant.name} to avoid conflicts")
     participant.kill_process()
 
     if action == "stop":
