@@ -199,12 +199,12 @@ class Aggregator:
         Args:
             next_step (str): Next step to be executed by collaborators
         """
-        for k, v in self.__collaborator_tasks_queue.items():
-            if k in self.selected_collaborators:
-                v.put((next_step, self.clones_dict[k]))
+        for collaborator, task_queue in self.__collaborator_tasks_queue.items():
+            if collaborator in self.selected_collaborators:
+                task_queue.put((next_step, self.clones_dict[collaborator]))
             else:
                 logger.info(
-                    f"Skipping task dispatch for collaborator '{k}' "
+                    f"Skipping task dispatch for collaborator '{collaborator}' "
                     f"as it is not part of selected_collaborators."
                 )
 
@@ -555,5 +555,11 @@ class Aggregator:
             )
 
     def all_quit_jobs_sent(self) -> bool:
-        """Assert all quit jobs are sent to collaborators."""
+        """
+        Check whether a quit job has been sent to all authorized collaborators.
+
+        Returns:
+            bool: True if quit jobs have been sent to all authorized collaborators,
+                False otherwise.
+        """
         return set(self.quit_job_sent_to) == set(self.authorized_cols)

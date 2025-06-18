@@ -129,7 +129,6 @@ class Experiment:
         self._aggregator_grpc_server = None
         self.aggregator = None
         self.updated_flow = None
-        self.experiment_exception_trace = None
 
     def _initialize_aggregator_server(
         self,
