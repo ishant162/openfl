@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-from openfl.experimental.workflow.interface import FLSpec, Aggregator, Collaborator
-from openfl.experimental.workflow.runtime import LocalRuntime
+
+from openfl.experimental.workflow.interface import Aggregator, Collaborator, FLSpec
 from openfl.experimental.workflow.placement import aggregator, collaborator
+from openfl.experimental.workflow.runtime import LocalRuntime
 
 
-class bcolors:  # NOQA: N801
+class TerminalColors:  # NOQA: N801
+    """ANSI color codes for terminal output formatting."""
+
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
     OKCYAN = "\033[96m"
@@ -17,6 +20,10 @@ class bcolors:  # NOQA: N801
     ENDC = "\033[0m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
+
+
+# Keep backward compatibility
+bcolors = TerminalColors
 
 
 class TestFlowExclude(FLSpec):
@@ -177,11 +184,7 @@ class TestFlowExclude(FLSpec):
             + f"{bcolors.ENDC}"
         )
         if TestFlowExclude.exclude_error_list:
-            raise (
-                AssertionError(
-                    f"{bcolors.FAIL}\n ...Test case failed ... {bcolors.ENDC}"
-                )
-            )
+            raise (AssertionError(f"{bcolors.FAIL}\n ...Test case failed ... {bcolors.ENDC}"))
 
 
 if __name__ == "__main__":
