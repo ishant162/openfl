@@ -6,10 +6,12 @@
 
 import asyncio
 import logging
+import traceback
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from openfl.experimental.workflow.federated import Plan
 from openfl.experimental.workflow.transport import AggregatorGRPCServer
@@ -28,6 +30,51 @@ class Status(Enum):
     REJECTED = auto()
 
 
+@dataclass
+class ExperimentStatus:
+    """
+    A class to track the status and exceptions of an experiment run.
+
+    Attributes:
+        status (Status): The current running status of the experiment.
+        updated_flow (FLSpec): The updated flow object associated with the experiment.
+        exception (str, optional): Any exception that occurred during the experiment.
+
+    """
+
+    status: Status = Status.PENDING
+    updated_flow: Optional[Any] = None
+    exception: Optional[str] = None
+
+    def update_experiment_status(
+        self,
+        status: Status,
+        updated_flow: Optional[Any] = None,
+        exception: Optional[str] = None,
+    ) -> None:
+        """
+        A method to update the experiment status and associated details.
+        """
+        self.status = status
+        if updated_flow:
+            self.updated_flow = updated_flow
+        if exception:
+            self.exception = exception
+
+    def get_status(self) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
+        """
+        Get the status of the experiment.
+
+        Returns:
+            dict: The status of the experiment.
+        """
+        return {
+            "status": self.status == Status.FINISHED,
+            "updated_flow": self.updated_flow,
+            "exception": self.exception,
+        }
+
+
 class Experiment:
     """Experiment class.
 
@@ -41,6 +88,8 @@ class Experiment:
             plan_path (Union[Path, str]): The path to the plan.
             users (Iterable[str]): The list of users.
             status (str): The status of the experiment.
+            aggregator_grpc_server (AggregatorGRPCServer): The gRPC server
+                for the aggregator.
             aggregator (Aggregator): The aggregator instance.
             updated_flow (FLSpec): Updated flow instance.
     """
@@ -76,9 +125,74 @@ class Experiment:
         # experiment workspace provided by the director
         self.plan_path = Path(plan_path)
         self.users = set() if users is None else set(users)
-        self.status = Status.PENDING
+        self.experiment_status = ExperimentStatus()
+        self._aggregator_grpc_server = None
         self.aggregator = None
         self.updated_flow = None
+
+    def _initialize_aggregator_server(
+        self,
+        tls: bool,
+        root_certificate: Optional[Union[Path, str]],
+        private_key: Optional[Union[Path, str]],
+        certificate: Optional[Union[Path, str]],
+        director_config: Path,
+    ) -> bool:
+        """Initialize the aggregator server.
+
+        Args:
+            tls (bool, optional): A flag indicating if TLS should be used for
+                connections. Defaults to True.
+            root_certificate (Optional[Union[Path, str]]): The path to the
+                root certificate for TLS. Defaults to None.
+            private_key (Optional[Union[Path, str]]): The path to the private
+                key for TLS. Defaults to None.
+            certificate (Optional[Union[Path, str]]): The path to the
+                certificate for TLS. Defaults to None.
+            director_config (Path): Path to director's config file.
+                Defaults to None.
+
+        Returns:
+            bool: True if the server was created successfully, False otherwise.
+        """
+        try:
+            self._aggregator_grpc_server = self._create_aggregator_grpc_server(
+                tls=tls,
+                root_certificate=root_certificate,
+                private_key=private_key,
+                certificate=certificate,
+                director_config=director_config,
+            )
+            self.aggregator = self._aggregator_grpc_server.aggregator
+            return True
+        except Exception:
+            exception_trace = traceback.format_exc()
+            logger.error(f"Failed to create aggregator server: {exception_trace}")
+            self.experiment_status.update_experiment_status(
+                Status.FAILED,
+                exception=exception_trace,
+            )
+            return False
+
+    async def _run_experiment_flow(self) -> None:
+        """Run the experiment flow and the aggregator gRPC server."""
+        _, self.updated_flow = await asyncio.gather(
+            self._run_aggregator_grpc_server(self._aggregator_grpc_server),
+            self.aggregator.run_flow(),
+        )
+
+    def _handle_experiment_failure(self) -> None:
+        """Handle experiment failure and update status."""
+        exception_trace = traceback.format_exc()
+        self.experiment_status.update_experiment_status(
+            Status.FAILED,
+            updated_flow=self.aggregator.extract_flow(),
+            exception=exception_trace,
+        )
+        # Mark quit jobs as sent to all collaborators to allow the
+        # aggregator gRPC server to shut down
+        self.aggregator.quit_job_sent_to = self.collaborators
+        logger.error(f"Experiment {self.name} failed with error: {exception_trace}")
 
     async def start(
         self,
@@ -89,7 +203,7 @@ class Experiment:
         certificate: Optional[Union[Path, str]] = None,
         director_config: Path = None,
         install_requirements: bool = True,
-    ) -> Tuple[bool, Any]:
+    ) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
         """Run experiment.
 
         Args:
@@ -106,41 +220,32 @@ class Experiment:
                 requirements should be installed. Defaults to True.
 
         Returns:
-            List[Union[bool, Any]]:
-                - status: status of the experiment.
-                - updated_flow: The updated flow object.
+            dict: A dictionary containing:
+                - status (Status): Final status of the experiment.
+                - updated_flow (FLSpec): The updated flow object.
+                - exception (str or None): Formatted traceback if any exception occurred.
         """
-        self.status = Status.IN_PROGRESS
+        self.experiment_status.update_experiment_status(Status.IN_PROGRESS)
+        logger.info(f"New experiment {self.name} for collaborators {self.collaborators}")
         try:
-            logger.info(f"New experiment {self.name} for collaborators {self.collaborators}")
-
             with ExperimentWorkspace(
                 experiment_name=self.name,
                 data_file_path=self.archive_path,
                 install_requirements=install_requirements,
             ):
-                aggregator_grpc_server = self._create_aggregator_grpc_server(
-                    tls=tls,
-                    root_certificate=root_certificate,
-                    private_key=private_key,
-                    certificate=certificate,
-                    director_config=director_config,
-                )
-                self.aggregator = aggregator_grpc_server.aggregator
-                _, self.updated_flow = await asyncio.gather(
-                    self._run_aggregator_grpc_server(
-                        aggregator_grpc_server,
-                    ),
-                    self.aggregator.run_flow(),
-                )
-            self.status = Status.FINISHED
-            logger.info("Experiment %s was finished successfully.", self.name)
-        except Exception as e:
-            self.status = Status.FAILED
-            logger.error("Experiment %s failed with error: %s.", self.name, e)
-            raise
+                if self._initialize_aggregator_server(
+                    tls, root_certificate, private_key, certificate, director_config
+                ):
+                    await self._run_experiment_flow()
+                    self.experiment_status.update_experiment_status(
+                        Status.FINISHED,
+                        updated_flow=self.updated_flow,
+                    )
+                    logger.info("Experiment %s was finished successfully.", self.name)
+        except Exception:
+            self._handle_experiment_failure()
 
-        return self.status == Status.FINISHED, self.updated_flow
+        return self.experiment_status.get_status()
 
     def _create_aggregator_grpc_server(
         self,

@@ -179,22 +179,23 @@ class FederatedRuntime(Runtime):
         finally:
             self.remove_workspace_archive(archive_path)
 
-    def get_flow_state(self) -> Tuple[bool, Any]:
+    def get_flow_state(self) -> Tuple[bool, Any, str]:
         """
         Retrieve the updated flow status and deserialized flow object.
 
         Returns:
             status (bool): The flow status.
             flow_object: The deserialized flow object.
+            exception (str): Exception message if any.
         """
-        status, flspec_obj = self._runtime_dir_client.get_flow_state()
+        status, flspec_obj, exception = self._runtime_dir_client.get_flow_state()
 
         # Append generated workspace path to sys.path
         # to allow unpickling of flspec_obj
         sys.path.append(str(self.generated_workspace_path))
         flow_object = dill.loads(flspec_obj)
 
-        return status, flow_object
+        return status, flow_object, exception
 
     def get_envoys(self) -> List[str]:
         """

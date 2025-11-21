@@ -9,13 +9,12 @@ import logging
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Tuple, Union
-
-import dill
+from typing import Any, AsyncGenerator, Dict, Iterable, Optional, Union
 
 from openfl.experimental.workflow.component.director.experiment import (
     Experiment,
     ExperimentsRegistry,
+    Status,
 )
 from openfl.experimental.workflow.transport.grpc.exceptions import EnvoyNotFoundError
 
@@ -37,7 +36,7 @@ class Director:
         _flow_status (Queue): Stores the flow status
         experiments_registry (ExperimentsRegistry): An object of
             ExperimentsRegistry to store the experiments.
-        col_exp (dict): A dictionary to store the experiments for
+        collaborator_experiments (dict): A dictionary to store the experiments for
             collaborators.
         col_exp_queues (defaultdict): A defaultdict to store the experiment
             queues for collaborators.
@@ -84,7 +83,7 @@ class Director:
         self._flow_status = asyncio.Queue()
 
         self.experiments_registry = ExperimentsRegistry()
-        self.col_exp = {}
+        self.collaborator_experiments = {}
         self.col_exp_queues = defaultdict(asyncio.Queue)
         self._envoy_registry = {}
         self.envoy_health_check_period = envoy_health_check_period
@@ -96,6 +95,7 @@ class Director:
         loop = asyncio.get_event_loop()
         while True:
             try:
+                logger.info("Waiting for an experiment to run...")
                 async with self.experiments_registry.get_next_experiment() as experiment:
                     await self._wait_for_authorized_envoys()
                     run_aggregator_future = loop.create_task(
@@ -115,6 +115,11 @@ class Director:
                     # Wait for the experiment to complete and save the result
                     flow_status = await run_aggregator_future
                     await self._flow_status.put(flow_status)
+                    # Mark all envoys' experiment states as None,
+                    # indicating no active experiment
+                    self.collaborator_experiments = dict.fromkeys(
+                        self.collaborator_experiments, None
+                    )
             except Exception as e:
                 logger.error(f"Error while executing experiment: {e}")
                 raise
@@ -131,16 +136,15 @@ class Director:
             )
             await asyncio.sleep(10)
 
-    async def get_flow_state(self) -> Tuple[bool, bytes]:
+    async def get_flow_state(self) -> Dict[str, Union[bool, Optional[Any], Optional[str]]]:
         """Wait until the experiment flow status indicates completion
-        and return the status along with a serialized FLSpec object.
+        and return the flow status.
 
         Returns:
-            status (bool): The flow status.
-            flspec_obj (bytes): A serialized FLSpec object (in bytes) using dill.
+            dict: A dictionary containing the flow status.
         """
-        status, flspec_obj = await self._flow_status.get()
-        return status, dill.dumps(flspec_obj)
+        status = await self._flow_status.get()
+        return status
 
     async def wait_experiment(self, envoy_name: str) -> str:
         """Waits for an experiment to be ready for a given envoy.
@@ -151,17 +155,17 @@ class Director:
         Returns:
             str: The name of the experiment on the queue.
         """
-        experiment_name = self.col_exp.get(envoy_name)
+        experiment_name = self.collaborator_experiments.get(envoy_name)
         # If any envoy gets disconnected
         if experiment_name and experiment_name in self.experiments_registry:
             experiment = self.experiments_registry[experiment_name]
             if experiment.aggregator.current_round < experiment.aggregator.rounds_to_train:
                 return experiment_name
 
-        self.col_exp[envoy_name] = None
+        self.collaborator_experiments[envoy_name] = None
         queue = self.col_exp_queues[envoy_name]
         experiment_name = await queue.get()
-        self.col_exp[envoy_name] = experiment_name
+        self.collaborator_experiments[envoy_name] = experiment_name
 
         return experiment_name
 
@@ -220,7 +224,11 @@ class Director:
                 f'No experiment name "{experiment_name}" in experiments list, or caller "{caller}"'
                 f" does not have access to this experiment"
             )
-        while not self.experiments_registry[experiment_name].aggregator:
+        experiment = self.experiments_registry[experiment_name]
+        while not experiment.aggregator:
+            if experiment.experiment_status.status == Status.FAILED:
+                # Exit early if the experiment failed to start
+                return
             await asyncio.sleep(5)
         aggregator = self.experiments_registry[experiment_name].aggregator
         while True:
@@ -277,7 +285,7 @@ class Director:
             envoy["is_online"] = time.time() < envoy.get("last_updated", 0) + envoy.get(
                 "valid_duration", 0
             )
-            envoy["experiment_name"] = self.col_exp.get(envoy["name"], "None")
+            envoy["experiment_name"] = self.collaborator_experiments.get(envoy["name"], "None")
 
         return self._envoy_registry
 

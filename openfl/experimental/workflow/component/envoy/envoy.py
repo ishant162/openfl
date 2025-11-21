@@ -138,12 +138,11 @@ class Envoy:
                 # Wait for experiment from Director server
                 experiment_name = self._envoy_dir_client.wait_experiment()
                 data_stream = self._envoy_dir_client.get_experiment_data(experiment_name)
+                data_file_path = self._save_data_stream_to_file(data_stream)
             except Exception as exc:
                 logger.exception("Failed to get experiment: %s", exc)
                 time.sleep(self.DEFAULT_RETRY_TIMEOUT_IN_SECONDS)
                 continue
-            data_file_path = self._save_data_stream_to_file(data_stream)
-
             try:
                 with ExperimentWorkspace(
                     experiment_name=f"{self.name}_{experiment_name}",
@@ -154,6 +153,7 @@ class Envoy:
                     self._run_collaborator()
             except Exception as exc:
                 logger.exception("Collaborator failed with error: %s:", exc)
+                continue
             finally:
                 self.is_experiment_running = False
 

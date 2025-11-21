@@ -89,6 +89,7 @@ message GetFlowStateRequest {}
 message GetFlowStateResponse {
     bool completed = 1;
     bytes flspec_obj = 2;
+    string exception = 3;
 }
 
 message SendRuntimeRequest {}
