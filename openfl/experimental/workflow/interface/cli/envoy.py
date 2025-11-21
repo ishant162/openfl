@@ -132,9 +132,11 @@ def start_(
     # Parse envoy parameters
     envoy_params = config.get("params", {})
     if envoy_params:
-        install_requirements = envoy_params["install_requirements"]
+        install_requirements = envoy_params.get("install_requirements", True)
+        client_reconnect_interval = envoy_params.get("client_reconnect_interval", 5)
     else:
         install_requirements = False
+        client_reconnect_interval = 5
 
     if config.root_certificate:
         config.root_certificate = Path(config.root_certificate).absolute()
@@ -153,6 +155,7 @@ def start_(
         certificate=config.certificate,
         tls=tls,
         install_requirements=install_requirements,
+        client_reconnect_interval=client_reconnect_interval,
     )
 
     envoy.start()

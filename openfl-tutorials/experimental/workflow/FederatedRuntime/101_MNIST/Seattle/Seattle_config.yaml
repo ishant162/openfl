@@ -1,6 +1,9 @@
 settings:
   director_host: localhost
   director_port: 50050
-  
+
+params:
+  client_reconnect_interval: 5
+
 Seattle:
   private_attributes: private_attributes.seattle_attrs

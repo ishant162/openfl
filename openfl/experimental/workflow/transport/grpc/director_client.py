@@ -12,9 +12,12 @@ from grpc._channel import _MultiThreadedRendezvous as DataStream
 
 from openfl.experimental.workflow.protocols import director_pb2, director_pb2_grpc
 from openfl.experimental.workflow.transport.grpc.exceptions import EnvoyNotFoundError
+from openfl.experimental.workflow.transport.grpc.grpc_channel_options import (
+    ConstantBackoff,
+    RetryOnRpcErrorClientInterceptor,
+    channel_options,
+)
 from openfl.protocols.utils import datastream_to_proto
-
-from .grpc_channel_options import channel_options
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class EnvoyDirectorClient:
         root_certificate: Optional[Union[Path, str]] = None,
         private_key: Optional[Union[Path, str]] = None,
         certificate: Optional[Union[Path, str]] = None,
+        client_reconnect_interval: int = 5,
     ) -> None:
         """
         Initialize director client object.
@@ -57,6 +61,7 @@ class EnvoyDirectorClient:
                 connection.
             certificate (Optional[Union[Path, str]]): The path to the certificate for the TLS
                 connection.
+            client_reconnect_interval (int): The interval for client reconnection attempts.
         """
         director_addr = f"{director_host}:{director_port}"
         self.envoy_name = envoy_name
@@ -82,7 +87,21 @@ class EnvoyDirectorClient:
                 certificate_chain=certificate_b,
             )
             channel = grpc.secure_channel(director_addr, credentials, options=channel_options)
-        self.stub = director_pb2_grpc.DirectorStub(channel)
+
+        # Adding an interceptor for RPC Errors
+        self.interceptors = (
+            RetryOnRpcErrorClientInterceptor(
+                sleeping_policy=ConstantBackoff(
+                    logger=logger,
+                    reconnect_interval=client_reconnect_interval,
+                    uri=director_addr,
+                    participant="Director",
+                ),
+                status_for_retry=(grpc.StatusCode.UNAVAILABLE,),
+            ),
+        )
+        intercept_channel = grpc.intercept_channel(channel, *self.interceptors)
+        self.stub = director_pb2_grpc.DirectorStub(intercept_channel)
 
     def connect_envoy(self, envoy_name: str) -> bool:
         """Attempt to establish a connection with the director.
